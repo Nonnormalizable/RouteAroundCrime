@@ -1,0 +1,4 @@
+syntax:glob
+*~
+venv
+.DS_Store
