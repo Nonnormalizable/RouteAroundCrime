@@ -14,11 +14,24 @@ def login():
         return 'post method '+request.args.get('bob', '')
     else:
         return 'get method '+request.args.get('bob', '')
-        #show_the_login_form()
 
 @app.route('/user/<username>')
 def profile(username):
     return 'User %s totally exists!' % username
+
+@app.route('/map_two')
+def map_two():
+    return """
+<head>
+  <script type="text/javascript"
+          src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDXluoQqUGT51AesCSg-voAfkLWr8V36SQ&sensor=false">
+  </script>
+  <script type="text/javascript" src="../static/js/map_display.js"></script>
+</head>
+<body onload="initialize_map()">
+  <div id="map_canvas" style="width:100%; height:100%">
+</body>
+"""
 
 @app.route('/hello/')
 @app.route('/hello/<name>')
