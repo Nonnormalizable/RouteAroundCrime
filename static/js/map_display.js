@@ -1,16 +1,9 @@
 var map;
 var directionsService = new google.maps.DirectionsService();
-var directionsDisplay;
-
-var testLoc = new google.maps.LatLng(37.84200, -122.26245);
-var marker = new google.maps.Marker({
-    position: testLoc,
-    title: "Hello marker!"
-});
+var directionsDisplay = new google.maps.DirectionsRenderer();
 
 function initialize()
 {
-    directionsDisplay = new google.maps.DirectionsRenderer();
     var mapOptions = {
         center: new google.maps.LatLng(37.835, -122.263),
         zoom: 14,
@@ -19,10 +12,9 @@ function initialize()
     map = new google.maps.Map(document.getElementById("map_canvas"),
 			      mapOptions);
     directionsDisplay.setMap(map);
-    marker.setMap(map);
 }
 
-function calcRoute()
+function calcRoute(callback)
 {
     var start = document.getElementById("start").value;
     var end = document.getElementById("end").value;
@@ -39,13 +31,36 @@ function calcRoute()
 				}
 				lookAtResult(result);
 			    });
+
+    getLocFromServer(function(locations){
+	for (var i=0; i<locations.length; i++) {
+	    var marker = new google.maps.Marker({
+		position: locations[i],
+		title: "Hello marker! "+i
+	    });
+	    marker.setMap(map);
+	}
+    });
+    
 }
 
 function lookAtResult(directionResult)
 {
     for (i=0; i<directionResult.routes.length; i++)
     {
-	console.log(i)
+	console.log('Route number ', i)
 	//console.log(directionResult.routes[i])
     }
+}
+
+function getLocFromServer(callback)
+{
+    var locations = new Array();
+    $.getJSON("/_points", {}, function(data) {
+	for (var i=0; i<data.latLons.length; i++) {
+	    locations.push(new google.maps.LatLng(data.latLons[i][0], data.latLons[i][1]));
+	}
+	//console.log('locations Array', locations);
+	callback(locations);
+    });
 }

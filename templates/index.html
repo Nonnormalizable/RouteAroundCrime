@@ -31,6 +31,7 @@
       <script type="text/javascript"
               src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDXluoQqUGT51AesCSg-voAfkLWr8V36SQ&sensor=false">
       </script>
+      <script src="../static/js/jquery.js"></script>
       <script type="text/javascript" src="../static/js/map_display.js"></script>
 
   </head>
@@ -45,7 +46,15 @@
       </div>
     </div>
 
-    <div class="container-fluid">
+    <script type="text/javascript">
+    $(function() {
+      $("#submitButton").bind("click", function() {
+        calcRoute();
+      });
+    });
+    </script>
+      
+      <div class="container-fluid">
       <div class="row-fluid">
         <div class="span5">
           <form id="directions_form">
@@ -66,7 +75,7 @@
               </select>
             </div>
             <div class="controls">
-              <button type="button" class="btn" onclick="calcRoute()">Submit</button>
+              <button type="button" class="btn" id="submitButton">Submit</button>
             </div>
           </form>
         </div> <!-- /first span -->
@@ -79,7 +88,6 @@
     <!-- Le javascript
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
-    <script src="../static/js/jquery.js"></script>
     <script src="../static/js/bootstrap-transition.js"></script>
     <script src="../static/js/bootstrap-alert.js"></script>
     <script src="../static/js/bootstrap-modal.js"></script>

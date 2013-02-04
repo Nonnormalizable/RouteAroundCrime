@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-from flask import Flask, url_for, request, render_template
+from flask import Flask, url_for, request, render_template, jsonify
 from flaskext.mysql import MySQL
+from pprint import pprint
 
 app = Flask(__name__)
 app.config.update(
@@ -14,11 +15,19 @@ app.config.update(
 
 @app.route('/')
 def index():
-    c = mysql.get_db().cursor()
-    c.execute("SELECT * FROM crime_raw LIMIT 9;")
-    print c.fetchone()
-
     return render_template('index.html')
+
+@app.route('/_points')
+def points():
+    c = mysql.get_db().cursor()
+    c.execute("SELECT latitude, longitude FROM crime_raw LIMIT 100;")
+    latLonTuple = c.fetchall()
+    
+    latLonList = []
+    for ll in latLonTuple:
+        latLonList.append([float(ll[0]), float(ll[1])])
+
+    return jsonify(latLons=latLonList)
 
 if __name__ == '__main__':
     app.debug = True
