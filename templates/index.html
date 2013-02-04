@@ -48,25 +48,25 @@
     <div class="container-fluid">
       <div class="row-fluid">
         <div class="span5">
-          <form>
+          <form id="directions_form">
             <label class="control-label" for="start">A</label>
             <div class="controls">
-              <input type="text" id="start" placeholder="Starting point">
+              <input type="text" id="start" name="start_input" placeholder="Starting point">
             </div>
             <label class="control-label" for="end">B</label>
             <div class="controls">
-              <input type="text" id="end" placeholder="Destination">
+              <input type="text" id="end" name="end_input" placeholder="Destination">
             </div>
             <label class="control-label" for="time">Time</label>
             <div class="controls">
-              <select id="time">
+              <select id="time" name="time_input">
                 <option>Anytime</option>
                 <option>Night</option>
                 <option>Day</option>
               </select>
             </div>
             <div class="controls">
-              <button type="submit" class="btn">Submit</button>
+              <button type="button" class="btn" onclick="calcRoute()">Submit</button>
             </div>
           </form>
         </div> <!-- /first span -->
