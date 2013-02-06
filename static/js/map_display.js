@@ -1,8 +1,25 @@
 var map;
 var directionsService = new google.maps.DirectionsService();
-var directionsDisplay = new google.maps.DirectionsRenderer();
+var directionsDisplay = new google.maps.DirectionsRenderer(preserveViewport=true);
 var markersArray = Array()
 
+$(function() {
+    $("#route0_line").mouseenter(function() {
+	directionsDisplay.setOptions({preserveViewport: true});
+	directionsDisplay.setRouteIndex(0);
+	displayCrimes(0);
+    });
+    $("#route1_line").mouseenter(function() {
+	directionsDisplay.setOptions({preserveViewport: true});
+	directionsDisplay.setRouteIndex(1);
+	displayCrimes(1);
+    });
+    $("#route2_line").mouseenter(function() {
+	directionsDisplay.setOptions({preserveViewport: true});
+	directionsDisplay.setRouteIndex(2);
+	displayCrimes(2);
+    });
+});
 function initialize()
 {
     var mapOptions = {
@@ -25,6 +42,7 @@ function calcRoute(callback)
 	travelMode: google.maps.TravelMode.WALKING,
 	provideRouteAlternatives: true
     }
+    directionsDisplay.setOptions({preserveViewport: false});
     directionsService.route(request, function(result, status) {
 	if (status == google.maps.DirectionsStatus.OK) {
 	    directionsDisplay.setDirections(result);
@@ -36,40 +54,70 @@ function calcRoute(callback)
 	    dataType: "json",
 	    contentType: "json",
 	    data: JSON.stringify(result),
-	    success: function(data) {displayCrimes(data);},
+	    success: function(data) {
+		console.log('Total paths ', data.paths.length);
+		displayCrimesCount(data);
+		createMarkersArray(data);
+		displayCrimes(0);
+	    },
 	    error: function() {console.error("ERROR in call to points_for_multiple_paths");}
 	});
     });
 }
 
-function displayCrimes(data)
+function displayCrimes(which = -1)
+{
+    for (i in markersArray) {
+	if (i == which || which == -1) {
+	    for (j in markersArray[i]) {
+		markersArray[i][j].setMap(map);
+	    }
+	}
+	else {
+	    for (j in markersArray[i]) {
+		markersArray[i][j].setMap(null);
+	    }
+	}
+    }
+};
+
+function createMarkersArray(data)
 {
     removeMarkers();
-    var latLons = data.latLons;
-    var pathCount = data.pathCount;
-    console.log(latLons.length, data.pathCount);
-    for (i in latLons) {
-	var marker = new google.maps.Marker({
-	    position: new google.maps.LatLng(latLons[i][0], latLons[i][1]),
-	    title: "Hello marker! "+i
-	});
-	markersArray.push(marker)
+    for (p in data.paths) {
+	var newArray = Array();
+	var latLons = data.paths[p].latLons;
+	for (i in latLons) {
+	    var marker = new google.maps.Marker({
+		position: new google.maps.LatLng(latLons[i][0], latLons[i][1]),
+		title: "Path "+p+", marker "+i
+	    });
+	    newArray.push(marker);
+	}
+	markersArray.push(newArray);
     }
-    for (i in markersArray) {
-	markersArray[i].setMap(map);
-    }
-    $("#route1_crimeNumber").html(pathCount)
+};
 
+function displayCrimesCount(data)
+{
+    for (p in data.paths) {
+	var pathCount = data.paths[p].pathCount;
+	$("#route"+p+"_crimeNumber").html(pathCount)
+    }
 };
 
 
-function removeMarkers() {
-  if (markersArray) {
-    for (i in markersArray) {
-      markersArray[i].setMap(null);
+function removeMarkers()
+{
+    if (markersArray) {
+	for (i in markersArray) {
+	    for (j in markersArray[i]) {
+		markersArray[i][j].setMap(null);
+	    }
+	    markersArray[i].length = 0;
+	}
+	markersArray.length = 0;
     }
-      markersArray.length = 0;
-  }
 }
 
 

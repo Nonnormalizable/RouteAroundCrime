@@ -94,31 +94,38 @@ WHERE Abs((@r*@c*Sin(@lat*@c)*longitude*@v2x + @r*@c*latitude*@v2y) -
 def points_for_multiple_paths():
     directions = json.loads(request.data)
     routes = directions['routes']
-    if not len(routes[0]['legs']) == 1:
-        raise ValueError, 'Unexpected number of "legs".'
-    #pprint(routes[0]['legs'][0])
-    #pprint(routes[0]['legs'][0].keys())
-    print 'number of steps', len(routes[0]['legs'][0]['steps'])
-    #pprint(routes[0]['legs'][0]['steps'])
-    #pprint(routes[0]['legs'][0]['steps'][0].keys())
+    crimeDictsForRoutes = {'paths': []}
+    for route in routes:
+        if not len(route['legs']) == 1:
+            raise ValueError, 'Unexpected number of "legs".'
+        #pprint(route['legs'][0])
+        #pprint(route['legs'][0].keys())
+        print 'number of steps', len(route['legs'][0]['steps'])
+        #pprint(route['legs'][0]['steps'])
+        #pprint(route['legs'][0]['steps'][0].keys())
 
-    steps = routes[0]['legs'][0]['steps']
-    crimesForLinesList = []
-    for step in steps:
-        lat1 = step['start_location']['Ya']
-        lon1 = step['start_location']['Za']
-        lat2 = step['end_location']['Ya']
-        lon2 = step['end_location']['Za']
-        crimesForLinesList.append(FindCrimesNearALine(lat1, lon1, lat2, lon2))
-        
-    fullPathDict = {'pathCount': 0, 'latLons': []}
-    for crimesJson in crimesForLinesList:
-        cDict = json.loads(crimesJson.data)
-        fullPathDict['pathCount'] += cDict['pathCount']
-        fullPathDict['latLons'] += cDict['latLons']
-    return jsonify(fullPathDict)
+        steps = route['legs'][0]['steps']
+        crimesForLinesList = []
+        for step in steps:
+            lat1 = step['start_location']['Ya']
+            lon1 = step['start_location']['Za']
+            lat2 = step['end_location']['Ya']
+            lon2 = step['end_location']['Za']
+            crimesForLinesList.append(FindCrimesNearALine(lat1, lon1, lat2, lon2))
+            
+        # TO DO: Correct double counting and make more efficient my putting MySQL determination into a function
+        # and ORing together the currently seperate queries
+        fullPathDict = {'pathCount': 0, 'latLons': []}
+        for crimesJson in crimesForLinesList:
+            cDict = json.loads(crimesJson.data)
+            fullPathDict['pathCount'] += cDict['pathCount']
+            fullPathDict['latLons'] += cDict['latLons']
+        crimeDictsForRoutes['paths'].append(fullPathDict)
+    #pprint(crimeDictsForRoutes)
+    #pprint(json.loads(jsonify(crimeDictsForRoutes).data))
+    return jsonify(crimeDictsForRoutes)
 
-def FindCrimesNearALine(latA, lonA, latB, lonB, d=70, nmax=1000):
+def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=1000):
     """
     Take the lat and lon (in normal degrees) of two points A and B, and a distance in meters.
     Querys the MySQL crime database.

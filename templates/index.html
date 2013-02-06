@@ -48,7 +48,7 @@
 
     <script type="text/javascript">
     $(function() {
-      $("#submitButton").bind("click", function() {
+      $("#submitButton").click(function() {
         calcRoute();
       });
     });
@@ -87,17 +87,17 @@
               </tr>
             </thead>
             <tbody>
-              <tr>
+              <tr id="route0_line">
                 <td>Route 1</td>
+                <td id="route0_crimeNumber">0000</td>
+              </tr>
+              <tr id="route1_line">
+                <td>Route 2</td>
                 <td id="route1_crimeNumber">0000</td>
               </tr>
-              <tr>
-                <td>Other</td>
-                <td>0000</td>
-              </tr>
-              <tr>
-                <td>Another</td>
-                <td>0000</td>
+              <tr id="route2_line">
+                <td>Route 3</td>
+                <td id="route2_crimeNumber">0000</td>
               </tr>
             </tbody>
           </table>
