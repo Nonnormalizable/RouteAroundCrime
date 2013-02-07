@@ -1,0 +1,6 @@
+Flask==0.9
+Flask-MySQL==1.2
+Jinja2==2.6
+MySQL-python==1.2.4
+Werkzeug==0.8.3
+wsgiref==0.1.2
