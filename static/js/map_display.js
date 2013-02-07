@@ -1,25 +1,8 @@
 var map;
 var directionsService = new google.maps.DirectionsService();
 var directionsDisplay = new google.maps.DirectionsRenderer(preserveViewport=true);
-var markersArray = Array()
+var markersArray = Array(100);
 
-$(function() {
-    $("#route0_line").mouseenter(function() {
-	directionsDisplay.setOptions({preserveViewport: true});
-	directionsDisplay.setRouteIndex(0);
-	displayCrimes(0);
-    });
-    $("#route1_line").mouseenter(function() {
-	directionsDisplay.setOptions({preserveViewport: true});
-	directionsDisplay.setRouteIndex(1);
-	displayCrimes(1);
-    });
-    $("#route2_line").mouseenter(function() {
-	directionsDisplay.setOptions({preserveViewport: true});
-	directionsDisplay.setRouteIndex(2);
-	displayCrimes(2);
-    });
-});
 function initialize()
 {
     var mapOptions = {
@@ -42,27 +25,56 @@ function calcRoute(callback)
 	travelMode: google.maps.TravelMode.WALKING,
 	provideRouteAlternatives: true
     }
-    directionsDisplay.setOptions({preserveViewport: false});
+    clearResults();
     directionsService.route(request, function(result, status) {
 	if (status == google.maps.DirectionsStatus.OK) {
 	    directionsDisplay.setDirections(result);
 	}
 	//lookAtResult(result);
-	$.ajax({
-	    url: "/_points_for_multiple_paths",
-	    type: "POST",
-	    dataType: "json",
-	    contentType: "json",
-	    data: JSON.stringify(result),
-	    success: function(data) {
-		console.log('Total paths ', data.paths.length);
-		displayCrimesCount(data);
-		createMarkersArray(data);
-		displayCrimes(0);
-	    },
-	    error: function() {console.error("ERROR in call to points_for_multiple_paths");}
-	});
+	for (i in result.routes) {
+	    var startTime = new Date().getTime();
+	    route = result.routes[i];
+	    route['routeNum'] = i;
+	    jsonToServer = JSON.stringify(route);
+	    $.ajax({
+		url: "/_points_for_a_path",
+		type: "POST",
+		dataType: "json",
+		contentType: "json",
+		data: jsonToServer,
+		success: function(data) {
+		    var endTime = new Date().getTime();
+		    console.log('routeNum =', data.routeNum, 'inside success', 'and time taken =', endTime-startTime);
+		    addTableLine(data.routeNum, data.paths[0].pathCount);
+		    displayCrimesCount(data, data.routeNum);
+		    createMarkersArray(data, data.routeNum);
+		    directionsDisplay.setRouteIndex(data.routeNum);
+		    displayCrimes(data.routeNum);
+		},
+		error: function(jqXHR, textStatus, errorThrown) {
+		    console.error("ERROR in call to points_for_a_path:", errorThrown);
+		}
+	    });
+	}
     });
+}
+
+function addTableLine(routeNum, crimeCount)
+{
+    var table_body = $("#route_table_body");
+    table_body.append($('<tr>', {
+//	id: routeString,
+	mouseenter: function () {
+	    directionsDisplay.setOptions({preserveViewport: true});
+	    directionsDisplay.setRouteIndex(parseInt(routeNum));
+	    displayCrimes(parseInt(routeNum));
+	},
+	html: '<td>Google route #'+(parseInt(routeNum)+1)+'</td><td>'+crimeCount+'</td>'
+    }));
+//    $('#'+routeString).html($('<td>', {
+//	html: routeString}));
+//    table_body.append($('<td>', {
+//	html:crimeCount}));
 }
 
 function displayCrimes(which = -1)
@@ -81,31 +93,63 @@ function displayCrimes(which = -1)
     }
 };
 
-function createMarkersArray(data)
+function createMarkersArray(data, which = -1)
 {
-    removeMarkers();
-    for (p in data.paths) {
+    if (which == -1) {
+	// Assume location in data.paths is for real.
+	for (p in data.paths) {
+	    var newArray = Array();
+	    var latLons = data.paths[p].latLons;
+	    for (i in latLons) {
+		var marker = new google.maps.Marker({
+		    position: new google.maps.LatLng(latLons[i][0], latLons[i][1]),
+		    title: "Path "+p+", marker "+i
+		});
+		newArray.push(marker);
+	    }
+	    markersArray[p] = newArray;
+	}
+    }
+    else {
+	// Assume data.paths.length==1.
 	var newArray = Array();
-	var latLons = data.paths[p].latLons;
+	var latLons = data.paths[0].latLons;
 	for (i in latLons) {
-	    var marker = new google.maps.Marker({
+	    var marker = new google.maps.Marker( {
 		position: new google.maps.LatLng(latLons[i][0], latLons[i][1]),
-		title: "Path "+p+", marker "+i
+		title: "Path "+which+", marker "+i
 	    });
 	    newArray.push(marker);
 	}
-	markersArray.push(newArray);
+	markersArray[which] = newArray;
     }
 };
 
-function displayCrimesCount(data)
+function displayCrimesCount(data, which=-1)
 {
-    for (p in data.paths) {
-	var pathCount = data.paths[p].pathCount;
-	$("#route"+p+"_crimeNumber").html(pathCount)
+    if (which==-1) {
+	for (p in data.paths) {
+	    var pathCount = data.paths[p].pathCount;
+	    $("#route"+p+"_crimeNumber").html(pathCount)
+	}
+    }
+    else {
+	var pathCount = data.paths[0].pathCount;
+	$("#route"+which+"_crimeNumber").html(pathCount);
     }
 };
 
+function removeCrimesCount(which=-1)
+{
+    if (which==-1) {
+	for (var i=0; i<3; i++) {
+	    $("#route"+i+"_crimeNumber").html(0)
+	}
+    }
+    else {
+	$("#route"+which+"_crimeNumber").html(0);
+    }
+};
 
 function removeMarkers()
 {
@@ -120,6 +164,14 @@ function removeMarkers()
     }
 }
 
+function clearResults()
+{
+    removeMarkers();
+    directionsDisplay.setOptions({preserveViewport: false});
+    directionsDisplay.setMap(null);
+    directionsDisplay.setMap(map);
+    removeCrimesCount();
+}
 
 function lookAtResult(directionResult)
 {
@@ -130,14 +182,3 @@ function lookAtResult(directionResult)
     }
 }
 
-function getLocFromServer(callback)
-{
-    var locations = new Array();
-    $.getJSON("/_points", {}, function(data) {
-	for (var i=0; i<data.latLons.length; i++) {
-	    locations.push(new google.maps.LatLng(data.latLons[i][0], data.latLons[i][1]));
-	}
-	//console.log('locations Array', locations);
-	callback(locations, data.pathCount);
-    });
-}
