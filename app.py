@@ -18,6 +18,10 @@ app.config.update(
 def index():
     return render_template('index.html')
 
+@app.route('/test')
+def test_page():
+    return render_template('test.html')
+
 @app.route('/_points_for_multiple_paths', methods=['POST'])
 def points_for_multiple_paths():
     directions = json.loads(request.data)
@@ -92,10 +96,10 @@ def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=1000):
     # centered on Oakland 12th St. city center
     SET @r = 6371009.0; # radius of the Earth in meters
     SET @c = 0.0174533; # conversion from degrees to radians
-    SET @pathlength = Sqrt( Pow(@r*@c*(@latB-@latA), 2) + Sin(@latA*@c)*Sin(@latB*@c)*Pow(@r*@c*(@lonB-@lonA), 2));
+    SET @pathlength = Sqrt( Pow(@r*@c*(@latB-@latA), 2) + Cos(@latA*@c)*Cos(@latB*@c)*Pow(@r*@c*(@lonB-@lonA), 2));
     # v1 is unit vector parallel to BA line
     SET @v1y = @r*@c*(@latB-@latA) / @pathlength;
-    SET @v1x = Sin(@latA*@c)*@r*@c*(@lonB-@lonA) / @pathlength;
+    SET @v1x = Cos(@latA*@c)*@r*@c*(@lonB-@lonA) / @pathlength;
     # v2 is perpendicular unit vector
     SET @v2x = -1 * @v1y;
     SET @v2y = @v1x;
@@ -112,14 +116,14 @@ def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=1000):
     c.execute("""
     SELECT latitude, longitude
     FROM crime_raw_index
-    WHERE Abs((@r*@c*Sin(@latA*@c)*longitude*@v2x + @r*@c*latitude*@v2y) -
-           	  (@r*@c*Sin(@latA*@c)*@lonA*@v2x + @r*@c*@latA*@v2y)) < @d # (input dot v2) minus (point on path dot v2)
+    WHERE Abs((@r*@c*Cos(@latA*@c)*longitude*@v2x + @r*@c*latitude*@v2y) -
+           	  (@r*@c*Cos(@latA*@c)*@lonA*@v2x + @r*@c*@latA*@v2y)) < @d # (input dot v2) minus (point on path dot v2)
     	  AND
-    	  (@r*@c*Sin(@latA*@c)*longitude*@v1x + @r*@c*latitude*@v1y) -
-           	  (@r*@c*Sin(@latA*@c)*@lonA*@v1x + @r*@c*@latA*@v1y) > -@d/2 # (input dot v1) minus (point1 on path dot v1)
+    	  (@r*@c*Cos(@latA*@c)*longitude*@v1x + @r*@c*latitude*@v1y) -
+           	  (@r*@c*Cos(@latA*@c)*@lonA*@v1x + @r*@c*@latA*@v1y) > -@d/2 # (input dot v1) minus (point1 on path dot v1)
     	  AND
-    	  (@r*@c*Sin(@latA*@c)*longitude*@v1x + @r*@c*latitude*@v1y) -
-           	  (@r*@c*Sin(@latA*@c)*@lonB*@v1x + @r*@c*@latB*@v1y) < @d/2 # (input dot v1) minus (point2 on path dot v1)
+    	  (@r*@c*Cos(@latA*@c)*longitude*@v1x + @r*@c*latitude*@v1y) -
+           	  (@r*@c*Cos(@latA*@c)*@lonB*@v1x + @r*@c*@latB*@v1y) < @d/2 # (input dot v1) minus (point2 on path dot v1)
     LIMIT """+str(nmax)+""";
     """)
     
@@ -136,14 +140,14 @@ def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=1000):
         c.execute("""
         SELECT COUNT(*)
         FROM crime_raw_index
-        WHERE Abs((@r*@c*Sin(@latA*@c)*longitude*@v2x + @r*@c*latitude*@v2y) -
-               	  (@r*@c*Sin(@latA*@c)*@lonA*@v2x + @r*@c*@latA*@v2y)) < @d # (input dot v2) minus (point on path dot v2)
+        WHERE Abs((@r*@c*Cos(@latA*@c)*longitude*@v2x + @r*@c*latitude*@v2y) -
+               	  (@r*@c*Cos(@latA*@c)*@lonA*@v2x + @r*@c*@latA*@v2y)) < @d # (input dot v2) minus (point on path dot v2)
         	  AND
-        	  (@r*@c*Sin(@latA*@c)*longitude*@v1x + @r*@c*latitude*@v1y) -
-               	  (@r*@c*Sin(@latA*@c)*@lonA*@v1x + @r*@c*@latA*@v1y) > -@d/2 # (input dot v1) minus (point1 on path dot v1)
+        	  (@r*@c*Cos(@latA*@c)*longitude*@v1x + @r*@c*latitude*@v1y) -
+               	  (@r*@c*Cos(@latA*@c)*@lonA*@v1x + @r*@c*@latA*@v1y) > -@d/2 # (input dot v1) minus (point1 on path dot v1)
         	  AND
-        	  (@r*@c*Sin(@latA*@c)*longitude*@v1x + @r*@c*latitude*@v1y) -
-               	  (@r*@c*Sin(@latA*@c)*@lonB*@v1x + @r*@c*@latB*@v1y) < @d/2 # (input dot v1) minus (point2 on path dot v1)
+        	  (@r*@c*Cos(@latA*@c)*longitude*@v1x + @r*@c*latitude*@v1y) -
+               	  (@r*@c*Cos(@latA*@c)*@lonB*@v1x + @r*@c*@latB*@v1y) < @d/2 # (input dot v1) minus (point2 on path dot v1)
         ;
         """)
         

@@ -75,6 +75,68 @@ function calcRoute(callback)
     });
 }
 
+function calcRouteTest(callback)
+{
+    var start = $("#start").val();
+    var end = $("#end").val();
+    var request = {
+	origin:start,
+	destination:end,
+	travelMode: google.maps.TravelMode.WALKING,
+	provideRouteAlternatives: true//,
+	//waypoints[]: [new google.maps.LatLng(37.844890, -122.270737)]
+    };
+    clearResults();
+    arrayOfRouteCrimeObjects = Array();
+    $('#route_table').hide();
+    $('#summary_text').hide();
+    directionsService.route(request, function(result, status) {
+	if (status == google.maps.DirectionsStatus.OK) {
+	    directionsDisplay.setDirections(result);
+	}
+	console.log(result.routes[0].legs[0].start_location.Ya, ',', result.routes[0].legs[0].start_location.Za);
+	console.log(result.routes[0].legs[0].end_location.Ya, ',', result.routes[0].legs[0].end_location.Za);
+	//lookAtResult(result);
+	createRouteTable();
+	for (i in result.routes) {
+	    var startTime = new Date().getTime();
+	    route = result.routes[i];
+	    route['routeNum'] = i;
+	    jsonToServer = JSON.stringify(route);
+	    $.ajax({
+		url: "/_points_for_a_path",
+		type: "POST",
+		dataType: "json",
+		contentType: "json",
+		data: jsonToServer,
+		success: function(data) {
+		    var endTime = new Date().getTime();
+		    console.log('routeNum =', data.routeNum, 'inside success', 'and time taken =', endTime-startTime);
+		    var routeCrimeObject = {
+			name: "Google_"+data.routeNum,
+			numCrimes: data.paths[0].pathCount};
+		    // This is the most embarrassing "sort" in the universe. Make more efficient on general principle.
+		    var position = 0;
+		    while (arrayOfRouteCrimeObjects[position] &&
+			   arrayOfRouteCrimeObjects[position].numCrimes < routeCrimeObject.numCrimes)
+		    {
+			position++;
+		    }
+		    arrayOfRouteCrimeObjects.splice(position, 0, routeCrimeObject);
+		    addTableLine(data.routeNum, data.paths[0].pathCount, position);
+		    createMarkersArray(data, data.routeNum);
+		    directionsDisplay.setRouteIndex(data.routeNum);
+		    displayCrimes(data.routeNum);
+		    updateSummary(routeCrimeObject, position);
+		},
+		error: function(jqXHR, textStatus, errorThrown) {
+		    console.error("ERROR in call to points_for_a_path:", errorThrown);
+		}
+	    });
+	}
+    });
+}
+
 function createRouteTable()
 {
     $('#intro_text').hide('slow');
