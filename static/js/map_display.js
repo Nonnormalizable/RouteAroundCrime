@@ -2,6 +2,7 @@ var map;
 var directionsService = new google.maps.DirectionsService();
 var directionsDisplay = new google.maps.DirectionsRenderer(preserveViewport=true);
 var markersArray = Array(100);
+var arrayOfRouteCrimeObjects = Array();
 
 function initialize()
 {
@@ -26,11 +27,15 @@ function calcRoute(callback)
 	provideRouteAlternatives: true
     }
     clearResults();
+    arrayOfRouteCrimeObjects = Array();
+    $('#route_table').hide();
+    $('#summary_text').hide();
     directionsService.route(request, function(result, status) {
 	if (status == google.maps.DirectionsStatus.OK) {
 	    directionsDisplay.setDirections(result);
 	}
 	//lookAtResult(result);
+	createRouteTable();
 	for (i in result.routes) {
 	    var startTime = new Date().getTime();
 	    route = result.routes[i];
@@ -45,11 +50,22 @@ function calcRoute(callback)
 		success: function(data) {
 		    var endTime = new Date().getTime();
 		    console.log('routeNum =', data.routeNum, 'inside success', 'and time taken =', endTime-startTime);
-		    addTableLine(data.routeNum, data.paths[0].pathCount);
-		    displayCrimesCount(data, data.routeNum);
+		    var routeCrimeObject = {
+			name: "Google_"+data.routeNum,
+			numCrimes: data.paths[0].pathCount};
+		    // This is the most embarrassing "sort" in the universe. Make more efficient on general principle.
+		    var position = 0;
+		    while (arrayOfRouteCrimeObjects[position] &&
+			   arrayOfRouteCrimeObjects[position].numCrimes < routeCrimeObject.numCrimes)
+		    {
+			position++;
+		    }
+		    arrayOfRouteCrimeObjects.splice(position, 0, routeCrimeObject);
+		    addTableLine(data.routeNum, data.paths[0].pathCount, position);
 		    createMarkersArray(data, data.routeNum);
 		    directionsDisplay.setRouteIndex(data.routeNum);
 		    displayCrimes(data.routeNum);
+		    updateSummary(routeCrimeObject, position);
 		},
 		error: function(jqXHR, textStatus, errorThrown) {
 		    console.error("ERROR in call to points_for_a_path:", errorThrown);
@@ -59,22 +75,73 @@ function calcRoute(callback)
     });
 }
 
-function addTableLine(routeNum, crimeCount)
+function createRouteTable()
+{
+    $('#intro_text').hide('slow');
+    $('#route_table').remove();
+    $('#intro_text').after('\
+          <table id="route_table" class="table table-hover">\
+            <thead>\
+              <tr>\
+                <th>Route<img hspace="35"></img></th>\
+                <th>Crimes</th>\
+              </tr>\
+            </thead>\
+            <tbody id="route_table_body">\
+            </tbody>\
+          </table>\
+');
+}
+
+function addTableLine(routeNum, crimeCount, position)
 {
     var table_body = $("#route_table_body");
-    table_body.append($('<tr>', {
-//	id: routeString,
-	mouseenter: function () {
-	    directionsDisplay.setOptions({preserveViewport: true});
-	    directionsDisplay.setRouteIndex(parseInt(routeNum));
-	    displayCrimes(parseInt(routeNum));
-	},
-	html: '<td>Google route #'+(parseInt(routeNum)+1)+'</td><td>'+crimeCount+'</td>'
-    }));
-//    $('#'+routeString).html($('<td>', {
-//	html: routeString}));
-//    table_body.append($('<td>', {
-//	html:crimeCount}));
+    if (position==0) {
+	table_body.prepend($('<tr>', {
+	    id: 'route_table_line_googlerouteNum'+routeNum,
+	    mouseenter: function () {
+		directionsDisplay.setOptions({preserveViewport: true});
+		directionsDisplay.setRouteIndex(parseInt(routeNum));
+		displayCrimes(parseInt(routeNum));
+	    },
+	    html: '<td>Google route #'+(parseInt(routeNum)+1)+'</td><td>'+crimeCount+'</td>'
+	}));
+    }
+    else {
+	$("#route_table_body tr:nth-child("+position+")").after($('<tr>', {
+	    id: 'route_table_line_googlerouteNum'+routeNum,
+	    mouseenter: function () {
+		directionsDisplay.setOptions({preserveViewport: true});
+		directionsDisplay.setRouteIndex(parseInt(routeNum));
+		displayCrimes(parseInt(routeNum));
+	    },
+	    html: '<td>Google route #'+(parseInt(routeNum)+1)+'</td><td>'+crimeCount+'</td>'
+	}));
+    }
+}
+
+function updateSummary(routeCrimeObject, position)
+{
+    if (position == 0) {
+	var ntext;
+	switch (routeCrimeObject.name) {
+	case 'Google_0': ntext = "1st"; break;
+	case 'Google_1': ntext = "2nd"; break;
+	case 'Google_2': ntext = "3rd"; break;
+	}
+	$('#summary_text').html('Your safest route is Google&rsquo;s '+ntext+' choice!');
+    }
+    if (arrayOfRouteCrimeObjects.length >=3)
+    {
+	var safestIndex = parseInt(arrayOfRouteCrimeObjects[0].name[7]);
+	setTimeout(
+	    function() {
+		$('#summary_text').show();
+		directionsDisplay.setRouteIndex(safestIndex);
+		displayCrimes(safestIndex);
+	    },
+	    900);
+    }
 }
 
 function displayCrimes(which = -1)
@@ -122,20 +189,6 @@ function createMarkersArray(data, which = -1)
 	    newArray.push(marker);
 	}
 	markersArray[which] = newArray;
-    }
-};
-
-function displayCrimesCount(data, which=-1)
-{
-    if (which==-1) {
-	for (p in data.paths) {
-	    var pathCount = data.paths[p].pathCount;
-	    $("#route"+p+"_crimeNumber").html(pathCount)
-	}
-    }
-    else {
-	var pathCount = data.paths[0].pathCount;
-	$("#route"+which+"_crimeNumber").html(pathCount);
     }
 };
 
