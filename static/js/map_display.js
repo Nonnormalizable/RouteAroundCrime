@@ -34,7 +34,6 @@ function calcRoute(callback)
 	if (status == google.maps.DirectionsStatus.OK) {
 	    directionsDisplay.setDirections(result);
 	}
-	//lookAtResult(result);
 	createRouteTable();
 	for (i in result.routes) {
 	    var startTime = new Date().getTime();
@@ -83,9 +82,9 @@ function calcRouteTest(callback)
 	origin:start,
 	destination:end,
 	travelMode: google.maps.TravelMode.WALKING,
-	provideRouteAlternatives: true//,
-	//waypoints[]: [new google.maps.LatLng(37.844890, -122.270737)]
+	provideRouteAlternatives: true
     };
+    console.log('request', request);
     clearResults();
     arrayOfRouteCrimeObjects = Array();
     $('#route_table').hide();
@@ -94,9 +93,6 @@ function calcRouteTest(callback)
 	if (status == google.maps.DirectionsStatus.OK) {
 	    directionsDisplay.setDirections(result);
 	}
-	console.log(result.routes[0].legs[0].start_location.Ya, ',', result.routes[0].legs[0].start_location.Za);
-	console.log(result.routes[0].legs[0].end_location.Ya, ',', result.routes[0].legs[0].end_location.Za);
-	//lookAtResult(result);
 	createRouteTable();
 	for (i in result.routes) {
 	    var startTime = new Date().getTime();
@@ -134,6 +130,7 @@ function calcRouteTest(callback)
 		}
 	    });
 	}
+	launchAdditionalRoutes(result);
     });
 }
 
@@ -206,8 +203,9 @@ function updateSummary(routeCrimeObject, position)
     }
 }
 
-function displayCrimes(which = -1)
+function displayCrimes(which)
 {
+    which = typeof which !== 'undefined' ? which : -1;
     for (i in markersArray) {
 	if (i == which || which == -1) {
 	    for (j in markersArray[i]) {
@@ -222,8 +220,9 @@ function displayCrimes(which = -1)
     }
 };
 
-function createMarkersArray(data, which = -1)
+function createMarkersArray(data)
 {
+    which = typeof which !== 'undefined' ? which : -1;
     if (which == -1) {
 	// Assume location in data.paths is for real.
 	for (p in data.paths) {
@@ -254,8 +253,15 @@ function createMarkersArray(data, which = -1)
     }
 };
 
-function removeCrimesCount(which=-1)
+function launchAdditionalRoutes(result)
 {
+    //waypoints: [{location: new google.maps.LatLng(37.844890, -122.264520), stopover: false}]
+    
+}
+
+function removeCrimesCount(which)
+{
+    which = typeof which !== 'undefined' ? which : -1;
     if (which==-1) {
 	for (var i=0; i<3; i++) {
 	    $("#route"+i+"_crimeNumber").html(0)
@@ -288,12 +294,4 @@ function clearResults()
     removeCrimesCount();
 }
 
-function lookAtResult(directionResult)
-{
-    for (i=0; i<directionResult.routes.length; i++)
-    {
-	console.log('Route number ', i)
-	console.log(directionResult.routes[i])
-    }
-}
 
