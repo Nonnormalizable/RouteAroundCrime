@@ -220,7 +220,7 @@ function displayCrimes(which)
     }
 };
 
-function createMarkersArray(data)
+function createMarkersArray(data, which)
 {
     which = typeof which !== 'undefined' ? which : -1;
     if (which == -1) {
