@@ -6,21 +6,33 @@ var polyLineArray = Array();
 var arrayOfRouteCrimeObjects = Array();
 var useCustomRouteDisplay = true;
 var doDisplayCrimeMarkers = false;
+var rateMax = 1.02;
 
-// first pass: full brightness and saturation, hues 110, 82, 54, 27, 0
+// Full brightness and saturation, hues 126 to 0
 // http://www.eyecon.ro/colorpicker/
+// Google maps doesn't like rbga, apparently.
 var arrayOfColors = [
-    "#2bff00", // green
-    "#a2ff00", // green-yellow
-    "#ffe600", // yellow
-    "#ff7300", // orange
+    "#00ff1a",
+    "#22ff00", // green
+    "#5eff00",
+    "#99ff00", // green-yellow
+    "#d5ff00",
+    "#ffee00", // yellow
+    "#ffb300",
+    "#ff7700", // orange
+    "#ff3c00",
     "#ff0000" // red
 ]
 var arrayOfColorsTransparent = [
-    "rgba(42,255,0,0.7)", // green
-    "rgba(162,255,0,0.7)", // green-yellow
-    "rgba(255,230,0,0.7)", // yellow
-    "rgba(255,115,0,0.7)", // orange
+    "rgba(0,255,26,0.7)",
+    "rgba(34,255,0,0.7)", // green
+    "rgba(94,255,0,0.7)",
+    "rgba(153,255,0,0.7)", // green-yellow
+    "rgba(213,255,0,0.7)",
+    "rgba(255,238,0,0.7)", // yellow
+    "rgba(255,179,0,0.7)",
+    "rgba(255,119,0,0.7)", // orange
+    "rgba(255,60,0,0.7)",
     "rgba(255,0,0,0.7)" // red
 ]
 
@@ -104,7 +116,7 @@ function calcRoute(start, end)
 		var polylineOfThisStep = new google.maps.Polyline({
 		    path: polyLineCoordsOfThisStep,
 		    strokeColor: "#000000",
-		    strokeOpacity: 0.8,
+		    strokeOpacity: 0.9,
 		    strokeWeight: 5
 		});
 		polyLineArrayOfThisRoute.push(polylineOfThisStep);
@@ -149,7 +161,7 @@ function calcRoute(start, end)
 		    }
 		    arrayOfRouteCrimeObjects.splice(position, 0, routeCrimeObject);
 		    addTableLine(data.routeNum, data.paths[0].pathCount, position,
-				 colorForCrimeRate(adjustedRate, true));
+				 adjustedRate);
 		    createMarkersArray(data, data.routeNum);
 		    for (j in polyLineArray[data.routeNum]) {
 			polyLineArray[data.routeNum][j].setOptions({strokeColor: colorForCrimeRate(adjustedRate, false)});
@@ -169,12 +181,16 @@ function calcRoute(start, end)
 function colorForCrimeRate(rate, transparent)
 {
     var c;
-    if (rate < 0.2) {c=0;}
-    else if (rate < 0.4) {c=1;}
-    else if (rate < 0.6) {c=2;}
-    else if (rate < 0.8) {c=3;}
-    else if (rate < 1.0) {c=4;}
-    else {c=4;}
+    if (rate < 0.1*rateMax) {c=0;}
+    else if (rate < 0.2*rateMax) {c=1;}
+    else if (rate < 0.3*rateMax) {c=2;}
+    else if (rate < 0.4*rateMax) {c=3;}
+    else if (rate < 0.5*rateMax) {c=4;}
+    else if (rate < 0.6*rateMax) {c=5;}
+    else if (rate < 0.7*rateMax) {c=6;}
+    else if (rate < 0.8*rateMax) {c=7;}
+    else if (rate < 0.9*rateMax) {c=8;}
+    else {c=9;}
     
     var color;
     
@@ -213,7 +229,7 @@ function createRouteTable()
             <thead>\
               <tr>\
                 <th>Route<img hspace="35"></img></th>\
-                <th>Crimes</th>\
+                <th>Crime Rating, 0&ndash;100</th>\
               </tr>\
             </thead>\
             <tbody id="route_table_body">\
@@ -222,8 +238,11 @@ function createRouteTable()
 ');
 }
 
-function addTableLine(routeNum, crimeCount, position, color)
+function addTableLine(routeNum, crimeCount, position, rate)
 {
+    var rateString = (rate/rateMax*100).toFixed(0);
+    //if (rateString>10) {rateString = (rateString).toFixed(0);}
+    //else {rateString = (rateString).toFixed(1);}
     var table_body = $("#route_table_body");
     if (position==0) {
 	table_body.prepend($('<tr>', {
@@ -236,7 +255,7 @@ function addTableLine(routeNum, crimeCount, position, color)
 	    mouseleave: function() {
 		$(this).css('font-weight', 'normal');
 	    },
-	    html: '<td>Google route #'+(parseInt(routeNum)+1)+'</td><td>'+crimeCount+'</td>'
+	    html: '<td>Google route #'+(parseInt(routeNum)+1)+'</td><td>'+rateString+'</td>'
 	}));
     }
     else {
@@ -246,9 +265,10 @@ function addTableLine(routeNum, crimeCount, position, color)
 		showRouteNumber(parseInt(routeNum));
 		displayCrimes(parseInt(routeNum));
 	    },
-	    html: '<td>Google route #'+(parseInt(routeNum)+1)+'</td><td>'+crimeCount+'</td>'
+	    html: '<td>Google route #'+(parseInt(routeNum)+1)+'</td><td>'+rateString+'</td>'
 	}));
     }
+    var color = colorForCrimeRate(rate, true);
     $('#route_table_line_googlerouteNum'+routeNum).css('background', color)
 }
 
