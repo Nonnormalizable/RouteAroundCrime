@@ -29,7 +29,7 @@
       <link rel="shortcut icon" href="../static/ico/favicon.ico">
       
       <script type="text/javascript"
-              src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDXluoQqUGT51AesCSg-voAfkLWr8V36SQ&sensor=false">
+              src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC9K_RPmpsBaBa6WRAeXQixhR0GcOwqBDs&sensor=false">
       </script>
       <script src="../static/js/jquery.js"></script>
       <script type="text/javascript" src="../static/js/map_display.js"></script>
@@ -46,15 +46,7 @@
       </div>
     </div>
 
-    <script type="text/javascript">
-    $(function() {
-      $("#submitButton").click(function() {
-        calcRoute();
-      });
-    });
-    </script>
-      
-      <div class="container-fluid">
+    <div class="container-fluid">
       <div class="row-fluid">
         <div class="span5" id="left_div">
           <form id="directions_form">
@@ -75,17 +67,30 @@
               </select>
             </div>
             <div class="controls">
-              <button type="button" class="btn" id="submitButton">Submit</button>
+              <button type="button" class="btn btn-primary" id="submitButton">Submit</button>
             </div>
           </form>
+          
+          <div class="btn-group">
+            <a class="btn btn-small">Examples</a>
+            <a class="btn dropdown-toggle btn-small" data-toggle="dropdown"><span class="caret"></span></a>
+            <ul class="dropdown-menu">
+              <li><a id="ex_1">Residential North Oakland</a></li>
+              <li><a id="ex_2">Tony Claremont Hills</a></li>
+              <li><a id="ex_3">Downtown Oakland</a></li>
+            </ul>
+          </div>
 
-          <p class="lead" id="intro_text">Let&rsquo;s find you the safest route from A to B!<br>
+          <div><br>
+            <p class="lead" id="intro_text">Let&rsquo;s find you the safest route from A to B!<br>
           Enter any two locations in Oakland.</p>
-          <p class="lead" id="summary_text" hidden="true"></p>
+            <p class="lead" id="summary_text" hidden="true"></p>
+          </div>          
           
         </div> <!-- /first span -->
         
-        <div class="span7" id="map_canvas" style="height:700px">
+        <div class="span7">
+          <div id="map_canvas" style="height:700px"></div>
         </div> <!-- /second span -->
       </div> <!-- /row -->
     </div> <!-- /container -->

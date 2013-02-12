@@ -2,12 +2,60 @@ var map;
 var directionsService = new google.maps.DirectionsService();
 var directionsDisplay = new google.maps.DirectionsRenderer(preserveViewport=true);
 var markersArray = Array(100);
+var polyLineArray = Array();
 var arrayOfRouteCrimeObjects = Array();
+var useCustomRouteDisplay = true;
+var doDisplayCrimeMarkers = false;
+
+// first pass: full brightness and saturation, hues 110, 82, 54, 27, 0
+// http://www.eyecon.ro/colorpicker/
+var arrayOfColors = [
+    "#2bff00", // green
+    "#a2ff00", // green-yellow
+    "#ffe600", // yellow
+    "#ff7300", // orange
+    "#ff0000" // red
+]
+var arrayOfColorsTransparent = [
+    "rgba(42,255,0,0.7)", // green
+    "rgba(162,255,0,0.7)", // green-yellow
+    "rgba(255,230,0,0.7)", // yellow
+    "rgba(255,115,0,0.7)", // orange
+    "rgba(255,0,0,0.7)" // red
+]
+
+$(function() {
+    $("#submitButton").click(function() {
+        calcRoute();
+    });
+
+    $("#ex_1").click(function() {
+	start = '59th & Genoa, Oakland, CA';
+	end = '55th & Telegraph, Oakland, CA';
+	$('#start').val(start);
+	$('#end').val(end);
+        calcRoute(start, end);
+    });
+    $("#ex_2").click(function() {
+	start = 'Tunnel & Bridge, Oakland, CA';
+	end = 'Gravatt & Grand View, Oakland, CA';
+	$('#start').val(start);
+	$('#end').val(end);
+        calcRoute(start, end);
+    });
+    $("#ex_3").click(function() {
+	start = '3rd & Castro, Oakland, CA';
+	end = '12th & Broadway, Oakland, CA';
+	$('#start').val(start);
+	$('#end').val(end);
+        calcRoute(start, end);
+    });
+});
 
 function initialize()
 {
     var mapOptions = {
-        center: new google.maps.LatLng(37.835, -122.263),
+        center: new google.maps.LatLng(37.83, -122.263),
         zoom: 14,
         mapTypeId: google.maps.MapTypeId.ROADMAP
     };
@@ -16,10 +64,10 @@ function initialize()
     directionsDisplay.setMap(map);
 }
 
-function calcRoute(callback)
+function calcRoute(start, end)
 {
-    var start = $("#start").val();
-    var end = $("#end").val();
+    start = typeof start !== 'undefined' ? start : $("#start").val();
+    end = typeof end !== 'undefined' ? end : $("#end").val();
     var request = {
 	origin:start,
 	destination:end,
@@ -32,8 +80,37 @@ function calcRoute(callback)
     $('#summary_text').hide();
     directionsService.route(request, function(result, status) {
 	if (status == google.maps.DirectionsStatus.OK) {
-	    directionsDisplay.setDirections(result);
+	    if (useCustomRouteDisplay) {
+		// Set defaule Google route display to invisible
+		// and just use for zooming viewport once.
+		directionsDisplay.setOptions({polylineOptions: {visible: false}});
+		directionsDisplay.setOptions({preserveViewport: false});
+		directionsDisplay.setRouteIndex(0);
+		directionsDisplay.setDirections(result);
+		showRouteNumber(0);
+	    } else {
+		directionsDisplay.setOptions({preserveViewport: false});
+		directionsDisplay.setDirections(result);
+	    }
 	}
+	for (i in result.routes) {
+	    var polyLineArrayOfThisRoute = Array();
+	    for (j in result.routes[i].legs[0].steps) {
+		var polyLineCoordsOfThisStep = [];
+		var path = result.routes[i].legs[0].steps[j].path;
+		for (k in path) {
+		    polyLineCoordsOfThisStep.push(new google.maps.LatLng(path[k].Ya, path[k].Za))
+		}
+		var polylineOfThisStep = new google.maps.Polyline({
+		    path: polyLineCoordsOfThisStep,
+		    strokeColor: "#000000",
+		    strokeOpacity: 0.8,
+		    strokeWeight: 5
+		});
+		polyLineArrayOfThisRoute.push(polylineOfThisStep);
+	    }
+	    polyLineArray.push(polyLineArrayOfThisRoute);
+	    }
 	createRouteTable();
 	for (i in result.routes) {
 	    var startTime = new Date().getTime();
@@ -48,10 +125,21 @@ function calcRoute(callback)
 		data: jsonToServer,
 		success: function(data) {
 		    var endTime = new Date().getTime();
-		    console.log('routeNum =', data.routeNum, 'inside success', 'and time taken =', endTime-startTime);
+		    var routeLength = result.routes[data.routeNum].legs[0].distance.value;
+		    var routeCrimeCount = data.paths[0].pathCount;
+		    var rate = routeCrimeCount/routeLength;
+		    // If route N has half as many total crimes as route 0, I don't care about its length.
+		    // Normalize to crime rate of 0th route.
+		    var adjustedRate = routeCrimeCount/result.routes[0].legs[0].distance.value;
+		    console.log('routeNum =', data.routeNum,
+				'and time taken =', endTime-startTime,
+				'route length', routeLength,
+				', crime count', routeCrimeCount,
+				', c/l', rate,
+				'adjustedRate', adjustedRate);
 		    var routeCrimeObject = {
 			name: "Google_"+data.routeNum,
-			numCrimes: data.paths[0].pathCount};
+			numCrimes: routeCrimeCount};
 		    // This is the most embarrassing "sort" in the universe. Make more efficient on general principle.
 		    var position = 0;
 		    while (arrayOfRouteCrimeObjects[position] &&
@@ -60,11 +148,15 @@ function calcRoute(callback)
 			position++;
 		    }
 		    arrayOfRouteCrimeObjects.splice(position, 0, routeCrimeObject);
-		    addTableLine(data.routeNum, data.paths[0].pathCount, position);
+		    addTableLine(data.routeNum, data.paths[0].pathCount, position,
+				 colorForCrimeRate(adjustedRate, true));
 		    createMarkersArray(data, data.routeNum);
-		    directionsDisplay.setRouteIndex(data.routeNum);
+		    for (j in polyLineArray[data.routeNum]) {
+			polyLineArray[data.routeNum][j].setOptions({strokeColor: colorForCrimeRate(adjustedRate, false)});
+		    }
+		    showRouteNumber(data.routeNum);
 		    displayCrimes(data.routeNum);
-		    updateSummary(routeCrimeObject, position);
+		    updateSummary(routeCrimeObject, position, result.routes.length);
 		},
 		error: function(jqXHR, textStatus, errorThrown) {
 		    console.error("ERROR in call to points_for_a_path:", errorThrown);
@@ -74,64 +166,42 @@ function calcRoute(callback)
     });
 }
 
-function calcRouteTest(callback)
+function colorForCrimeRate(rate, transparent)
 {
-    var start = $("#start").val();
-    var end = $("#end").val();
-    var request = {
-	origin:start,
-	destination:end,
-	travelMode: google.maps.TravelMode.WALKING,
-	provideRouteAlternatives: true
-    };
-    console.log('request', request);
-    clearResults();
-    arrayOfRouteCrimeObjects = Array();
-    $('#route_table').hide();
-    $('#summary_text').hide();
-    directionsService.route(request, function(result, status) {
-	if (status == google.maps.DirectionsStatus.OK) {
-	    directionsDisplay.setDirections(result);
-	}
-	createRouteTable();
-	for (i in result.routes) {
-	    var startTime = new Date().getTime();
-	    route = result.routes[i];
-	    route['routeNum'] = i;
-	    jsonToServer = JSON.stringify(route);
-	    $.ajax({
-		url: "/_points_for_a_path",
-		type: "POST",
-		dataType: "json",
-		contentType: "json",
-		data: jsonToServer,
-		success: function(data) {
-		    var endTime = new Date().getTime();
-		    console.log('routeNum =', data.routeNum, 'inside success', 'and time taken =', endTime-startTime);
-		    var routeCrimeObject = {
-			name: "Google_"+data.routeNum,
-			numCrimes: data.paths[0].pathCount};
-		    // This is the most embarrassing "sort" in the universe. Make more efficient on general principle.
-		    var position = 0;
-		    while (arrayOfRouteCrimeObjects[position] &&
-			   arrayOfRouteCrimeObjects[position].numCrimes < routeCrimeObject.numCrimes)
-		    {
-			position++;
-		    }
-		    arrayOfRouteCrimeObjects.splice(position, 0, routeCrimeObject);
-		    addTableLine(data.routeNum, data.paths[0].pathCount, position);
-		    createMarkersArray(data, data.routeNum);
-		    directionsDisplay.setRouteIndex(data.routeNum);
-		    displayCrimes(data.routeNum);
-		    updateSummary(routeCrimeObject, position);
-		},
-		error: function(jqXHR, textStatus, errorThrown) {
-		    console.error("ERROR in call to points_for_a_path:", errorThrown);
+    var c;
+    if (rate < 0.2) {c=0;}
+    else if (rate < 0.4) {c=1;}
+    else if (rate < 0.6) {c=2;}
+    else if (rate < 0.8) {c=3;}
+    else if (rate < 1.0) {c=4;}
+    else {c=4;}
+    
+    var color;
+    
+    if (transparent) {color = arrayOfColorsTransparent[c];}
+    else {color = arrayOfColors[c];}
+    return color;
+}
+
+function showRouteNumber(num) {
+    if (useCustomRouteDisplay) {
+	for (i in polyLineArray) {
+	    if (i==num) {
+		for (j in polyLineArray[i]) {
+		    if (!polyLineArray[i][j].getMap()) polyLineArray[i][j].setMap(map);
 		}
-	    });
+	    }
+	    else {
+		for (j in polyLineArray[i]) {
+		    if (polyLineArray[i][j].getMap()) polyLineArray[i][j].setMap(null);
+		}
+	    }
 	}
-	launchAdditionalRoutes(result);
-    });
+    }
+    else {
+	directionsDisplay.setOptions({preserveViewport: true});
+	directionsDisplay.setRouteIndex(num);
+    }
 }
 
 function createRouteTable()
@@ -139,7 +209,7 @@ function createRouteTable()
     $('#intro_text').hide('slow');
     $('#route_table').remove();
     $('#intro_text').after('\
-          <table id="route_table" class="table table-hover">\
+          <table id="route_table" class="table">\
             <thead>\
               <tr>\
                 <th>Route<img hspace="35"></img></th>\
@@ -152,16 +222,19 @@ function createRouteTable()
 ');
 }
 
-function addTableLine(routeNum, crimeCount, position)
+function addTableLine(routeNum, crimeCount, position, color)
 {
     var table_body = $("#route_table_body");
     if (position==0) {
 	table_body.prepend($('<tr>', {
 	    id: 'route_table_line_googlerouteNum'+routeNum,
 	    mouseenter: function () {
-		directionsDisplay.setOptions({preserveViewport: true});
-		directionsDisplay.setRouteIndex(parseInt(routeNum));
+		showRouteNumber(parseInt(routeNum));
 		displayCrimes(parseInt(routeNum));
+		$(this).css('font-weight', 'bold');
+	    },
+	    mouseleave: function() {
+		$(this).css('font-weight', 'normal');
 	    },
 	    html: '<td>Google route #'+(parseInt(routeNum)+1)+'</td><td>'+crimeCount+'</td>'
 	}));
@@ -170,16 +243,16 @@ function addTableLine(routeNum, crimeCount, position)
 	$("#route_table_body tr:nth-child("+position+")").after($('<tr>', {
 	    id: 'route_table_line_googlerouteNum'+routeNum,
 	    mouseenter: function () {
-		directionsDisplay.setOptions({preserveViewport: true});
-		directionsDisplay.setRouteIndex(parseInt(routeNum));
+		showRouteNumber(parseInt(routeNum));
 		displayCrimes(parseInt(routeNum));
 	    },
 	    html: '<td>Google route #'+(parseInt(routeNum)+1)+'</td><td>'+crimeCount+'</td>'
 	}));
     }
+    $('#route_table_line_googlerouteNum'+routeNum).css('background', color)
 }
 
-function updateSummary(routeCrimeObject, position)
+function updateSummary(routeCrimeObject, position, numRoutes)
 {
     if (position == 0) {
 	var ntext;
@@ -190,13 +263,13 @@ function updateSummary(routeCrimeObject, position)
 	}
 	$('#summary_text').html('Your safest route is Google&rsquo;s '+ntext+' choice!');
     }
-    if (arrayOfRouteCrimeObjects.length >=3)
+    if (arrayOfRouteCrimeObjects.length >= numRoutes)
     {
 	var safestIndex = parseInt(arrayOfRouteCrimeObjects[0].name[7]);
 	setTimeout(
 	    function() {
 		$('#summary_text').show();
-		directionsDisplay.setRouteIndex(safestIndex);
+		showRouteNumber(safestIndex);
 		displayCrimes(safestIndex);
 	    },
 	    900);
@@ -205,16 +278,18 @@ function updateSummary(routeCrimeObject, position)
 
 function displayCrimes(which)
 {
-    which = typeof which !== 'undefined' ? which : -1;
-    for (i in markersArray) {
-	if (i == which || which == -1) {
-	    for (j in markersArray[i]) {
-		markersArray[i][j].setMap(map);
+    if (doDisplayCrimeMarkers) {
+	which = typeof which !== 'undefined' ? which : -1;
+	for (i in markersArray) {
+	    if (i == which || which == -1) {
+		for (j in markersArray[i]) {
+		    markersArray[i][j].setMap(map);
+		}
 	    }
-	}
-	else {
-	    for (j in markersArray[i]) {
-		markersArray[i][j].setMap(null);
+	    else {
+		for (j in markersArray[i]) {
+		    markersArray[i][j].setMap(null);
+		}
 	    }
 	}
     }
@@ -292,6 +367,13 @@ function clearResults()
     directionsDisplay.setMap(null);
     directionsDisplay.setMap(map);
     removeCrimesCount();
+    for (i in polyLineArray) {
+	for (j in polyLineArray[i]) {
+	    polyLineArray[i][j].setMap(null);
+	}
+	polyLineArray[i].length = 0;
+    }
+    polyLineArray.length = 0;
 }
 
 
