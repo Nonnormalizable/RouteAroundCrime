@@ -143,12 +143,14 @@ function calcRoute(start, end)
 		    // If route N has half as many total crimes as route 0, I don't care about its length.
 		    // Normalize to crime rate of 0th route.
 		    var adjustedRate = routeCrimeCount/result.routes[0].legs[0].distance.value;
+		    var stepByStepCount = data.paths[0].stepByStepCount;
 		    console.log('routeNum =', data.routeNum,
 				'and time taken =', endTime-startTime,
 				'route length', routeLength,
 				', crime count', routeCrimeCount,
-				', c/l', rate,
-				'adjustedRate', adjustedRate);
+				', c/l', rate.toFixed(4),
+				', adjustedRate', adjustedRate.toFixed(4),
+				', stepByStepCount', stepByStepCount);
 		    var routeCrimeObject = {
 			name: "Google_"+data.routeNum,
 			numCrimes: routeCrimeCount};
@@ -164,17 +166,21 @@ function calcRoute(start, end)
 				 adjustedRate);
 		    createMarkersArray(data, data.routeNum);
 		    for (j in polyLineArray[data.routeNum]) {
-			polyLineArray[data.routeNum][j].setOptions({strokeColor: colorForCrimeRate(adjustedRate, false)});
+			var stepLength = result.routes[data.routeNum].legs[0].steps[j].distance.value;
+			var stepRate = stepByStepCount[j]/stepLength;
+			console.log('    step =', j, ', stepRate', stepRate);
+			polyLineArray[data.routeNum][j].setOptions({
+			    strokeColor: colorForCrimeRate(stepRate, false)});
 		    }
 		    showRouteNumber(data.routeNum);
 		    displayCrimes(data.routeNum);
 		    updateSummary(routeCrimeObject, position, result.routes.length);
-		},
+		}, // end success callback
 		error: function(jqXHR, textStatus, errorThrown) {
 		    console.error("ERROR in call to points_for_a_path:", errorThrown);
 		}
-	    });
-	}
+	    }); // end ajax call to server
+	} // end loop over result routes
     });
 }
 

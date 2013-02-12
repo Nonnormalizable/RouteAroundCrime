@@ -43,11 +43,12 @@ def points_for_multiple_paths():
             
         # TO DO: Correct double counting and make more efficient my putting MySQL determination into a function
         # and ORing together the currently seperate queries
-        fullPathDict = {'pathCount': 0, 'latLons': []}
+        fullPathDict = {'pathCount': 0, 'latLons': [], 'stepByStepCount': []}
         for crimesJson in crimesForLinesList:
             cDict = json.loads(crimesJson.data)
             fullPathDict['pathCount'] += cDict['pathCount']
             fullPathDict['latLons'] += cDict['latLons']
+            fullPathDict['stepByStepCount'].append(cDict['pathCount'])
         crimeDictsForRoutes['paths'].append(fullPathDict)
     return jsonify(crimeDictsForRoutes)
 
@@ -70,11 +71,12 @@ def points_for_a_paths():
             
     # TO DO: Correct double counting and make more efficient my putting MySQL determination into a function
     # and ORing together the currently seperate queries
-    fullPathDict = {'pathCount': 0, 'latLons': []}
+    fullPathDict = {'pathCount': 0, 'latLons': [], 'stepByStepCount': []}
     for crimesJson in crimesForLinesList:
         cDict = json.loads(crimesJson.data)
         fullPathDict['pathCount'] += cDict['pathCount']
         fullPathDict['latLons'] += cDict['latLons']
+        fullPathDict['stepByStepCount'].append(cDict['pathCount'])
     crimeDictsForRoutes['paths'].append(fullPathDict)
     crimeDictsForRoutes['routeNum'] = int(route['routeNum'])
     return jsonify(crimeDictsForRoutes)
