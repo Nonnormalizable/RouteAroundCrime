@@ -62,6 +62,18 @@ $(function() {
 	$('#end').val(end);
         calcRoute(start, end);
     });
+
+// autocomplete
+var squareBoundsOfOakland = new google.maps.LatLngBounds(
+    new google.maps.LatLng(37.7009, -122.353), // SW of square
+    new google.maps.LatLng(37.8819, -122.101)); // NE of squar
+var inputStart = document.getElementById('start');
+var inputEnd = document.getElementById('end');
+var autoCompleteOptions = {
+//    types: ['geocode'],
+    bounds: squareBoundsOfOakland};
+autocompleteStart = new google.maps.places.Autocomplete(inputStart, autoCompleteOptions);
+autocompleteEnd = new google.maps.places.Autocomplete(inputEnd, autoCompleteOptions);
 });
 
 function initialize()
