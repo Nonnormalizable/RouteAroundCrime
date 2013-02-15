@@ -49,7 +49,7 @@ $(function() {
         calcRoute(start, end);
     });
     $("#ex_2").click(function() {
-	start = 'Tunnel & Bridge, Oakland, CA';
+	start = 'Tunnel & Robel, Oakland, CA';
 	end = 'Gravatt & Grand View, Oakland, CA';
 	$('#start').val(start);
 	$('#end').val(end);
