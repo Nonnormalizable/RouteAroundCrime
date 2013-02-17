@@ -18,6 +18,10 @@ app.config.update(
 def index():
     return render_template('index.html')
 
+@app.route('/slides')
+def slides():
+    return render_template('slides.html')
+
 @app.route('/test')
 def test_page():
     return render_template('test.html')

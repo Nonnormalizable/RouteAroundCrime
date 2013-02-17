@@ -5,6 +5,10 @@
     <title>Route Around Crime!</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="../static/css/bootstrap-responsive.css" rel="stylesheet">
+    <link href="../static/css/deck.core.css" rel="stylesheet">
+    <link href="../static/css/horizontal-slide.css" rel="stylesheet">
+    <link rel="stylesheet" href="../static/css/deck.navigation.css">
+    <script src="../static/js/modernizr.custom.js"></script>
     <meta name="description" content="">
     <meta name="author" content="">
 
@@ -83,7 +87,7 @@
 
   </head>
 
-  <body onload="initialize()">
+  <body>
 
     <div id="wrap">
       <div class="navbar navbar-fixed-top">
@@ -92,8 +96,8 @@
             <a class="brand" href="/">Route <i class="text-info">Around</i> Crime!</a>
             <div class="nav-collapse collapse">
               <ul class="nav">
-                <li class="active"><a href="/">Home</a></li>
-                <li><a href="/slides">Slides</a></li>
+                <li><a href="/">Home</a></li>
+                <li class="active"><a href="/slides">Slides</a></li>
               </ul>
             </div><!--/.nav-collapse -->
           </div>
@@ -102,55 +106,39 @@
 
       <div class="container-fluid">
         <div class="row-fluid">
-          <div class="span5" id="left_div">
-            <form id="directions_form">
-              <label class="control-label" for="start">A</label>
-              <div class="controls">
-                <input type="text" id="start" name="start_input" placeholder="Starting point" class="input-xlarge">
-              </div>
-              <label class="control-label" for="end">B</label>
-              <div class="controls">
-                <input type="text" id="end" name="end_input" placeholder="Destination" class="input-xlarge">
-              </div>
-              <label class="control-label" for="time">Time</label>
-              <div class="controls">
-                <select id="time" name="time_input">
-                  <option value=0>Anytime</option>
-                  <option value=1>Morning (4 am &ndash; Noon)</option>
-                  <option value=2>Afternoon (Noon &ndash; 8 pm)</option>
-                  <option value=4>Night (8 pm &ndash; 4 am)</option>
-                </select>
-              </div>
-              <div class="controls">
-                <button type="button" class="btn btn-primary" id="submitButton">Submit</button>
-              </div>
-            </form>
+          <div class="span12">
             
-            <div class="btn-group">
-              <a class="btn btn-small">Examples</a>
-              <a class="btn dropdown-toggle btn-small" data-toggle="dropdown"><span class="caret"></span></a>
-              <ul class="dropdown-menu">
-                <li><a id="ex_1">Residential North Oakland</a></li>
-                <li><a id="ex_2">Wealthy Claremont Hills</a></li>
-                <li><a id="ex_3">Downtown Oakland</a></li>
-              </ul>
-            </div>
+            <section class="slide">
+              <img src="../static/img/slides.001.png" atl="slide1">
+            </section>
+            
+            <section class="slide">
+              <img src="../static/img/slides.002.png" atl="slide2">
+            </section>
+            
+            <section class="slide">
+              <img src="../static/img/slides.003.png" atl="slide3">
+            </section>
+            
+            <section class="slide">
+              <img src="../static/img/slides.004.png" atl="slide4">
+            </section>
+            
+            <section class="slide">
+              <img src="../static/img/slides.005.png" atl="slide5">
+            </section>
 
-            <div><br>
-              <p class="lead" id="intro_text">Let&rsquo;s find you the safest route from A to B!<br>
-          Enter any two locations in Oakland.</p>
-              <p class="lead" id="summary_text" hidden="true"></p>
-            </div>          
+            <section class="slide">
+              <img src="../static/img/slides.006.png" atl="slide6">
+            </section>
             
-          </div> <!-- /first span -->
-          
-          <div class="span7">
-            <div id="map_canvas" style="height:700px"></div>
-          </div> <!-- /se<bodyspan -->
-        </div> <!-- /row -->
-      </div> <!-- /container -->
-      
+          </div>
+        </div>
+      </div>
+
     </div>
+    
+
     <div id="footer">
       <div class="container">
         <p class="muted credit">Created by <a href="http://www.linkedin.com/in/andrebach">Andre Bach</a> in 2013 as an <a href="http://insightdatascience.com/">Insight</a> project.
@@ -159,6 +147,10 @@
     <!-- Le javascript
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
+
+    <script src="../static/js/deck.core.js"></script>
+    <script src="../static/js/deck.navigation.js"></script>
+
     <script src="../static/js/bootstrap-transition.js"></script>
     <script src="../static/js/bootstrap-alert.js"></script>
     <script src="../static/js/bootstrap-modal.js"></script>
@@ -172,5 +164,11 @@
     <script src="../static/js/bootstrap-carousel.js"></script>
     <script src="../static/js/bootstrap-typeahead.js"></script>
 
+    <script>
+    $(function() {
+      $.deck('.slide');
+    });
+    </script>
+    
   </body>
 </html>
