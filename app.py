@@ -22,36 +22,6 @@ def index():
 def test_page():
     return render_template('test.html')
 
-@app.route('/_points_for_multiple_paths', methods=['POST'])
-def points_for_multiple_paths():
-    directions = json.loads(request.data)
-    routes = directions['routes']
-    crimeDictsForRoutes = {'paths': []}
-    for route in routes:
-        if not len(route['legs']) == 1:
-            raise ValueError, 'Unexpected number of "legs".'
-        print 'In points_for_multiple_paths: Number of steps', len(route['legs'][0]['steps'])
-
-        steps = route['legs'][0]['steps']
-        crimesForLinesList = []
-        for step in steps:
-            lat1 = step['start_location']['Ya']
-            lon1 = step['start_location']['Za']
-            lat2 = step['end_location']['Ya']
-            lon2 = step['end_location']['Za']
-            crimesForLinesList.append(FindCrimesNearALine(lat1, lon1, lat2, lon2))
-            
-        # TO DO: Correct double counting and make more efficient my putting MySQL determination into a function
-        # and ORing together the currently seperate queries
-        fullPathDict = {'pathCount': 0, 'latLons': [], 'stepByStepCount': []}
-        for crimesJson in crimesForLinesList:
-            cDict = json.loads(crimesJson.data)
-            fullPathDict['pathCount'] += cDict['pathCount']
-            fullPathDict['latLons'] += cDict['latLons']
-            fullPathDict['stepByStepCount'].append(cDict['pathCount'])
-        crimeDictsForRoutes['paths'].append(fullPathDict)
-    return jsonify(crimeDictsForRoutes)
-
 @app.route('/_points_for_a_path', methods=['POST'])
 def points_for_a_paths():
     route = json.loads(request.data)
@@ -67,21 +37,25 @@ def points_for_a_paths():
         lon1 = step['start_location']['Za']
         lat2 = step['end_location']['Ya']
         lon2 = step['end_location']['Za']
-        crimesForLinesList.append(FindCrimesNearALine(lat1, lon1, lat2, lon2))
+        crimesForLinesList.append(FindCrimesNearALine(lat1, lon1, lat2, lon2,
+                                                      selectedPartOfDay=int(route['selectedPartOfDay'])))
             
     # TO DO: Correct double counting and make more efficient my putting MySQL determination into a function
     # and ORing together the currently seperate queries
-    fullPathDict = {'pathCount': 0, 'latLons': [], 'stepByStepCount': []}
+    fullPathDict = {'pathCount': 0, 'latLons': [], 'stepByStepCount': [],
+                    'partsOfDay': [], 'crimeWeights': []}
     for crimesJson in crimesForLinesList:
         cDict = json.loads(crimesJson.data)
         fullPathDict['pathCount'] += cDict['pathCount']
         fullPathDict['latLons'] += cDict['latLons']
         fullPathDict['stepByStepCount'].append(cDict['pathCount'])
+        fullPathDict['partsOfDay'].append(cDict['partsOfDay'])
+        fullPathDict['crimeWeights'].append(cDict['crimeWeights'])
     crimeDictsForRoutes['paths'].append(fullPathDict)
     crimeDictsForRoutes['routeNum'] = int(route['routeNum'])
     return jsonify(crimeDictsForRoutes)
 
-def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=1000):
+def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=10000, selectedPartOfDay=0):
     """
     Take the lat and lon (in normal degrees) of two points A and B, and a distance in meters.
     Querys the MySQL crime database.
@@ -115,9 +89,16 @@ def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=1000):
     #c.execute("SELECT @v1x, @v1y, @v2x, @v2y;")
     #pprint(c.fetchall())
 
+    if selectedPartOfDay == 0:
+        partOfDayConditionString = ''
+    elif selectedPartOfDay in [1,2,4]:
+        partOfDayConditionString = ' AND part_of_day = %i ' % selectedPartOfDay
+    else:
+        raise ValueError, selectedPartOfDay
+
     c.execute("""
-    SELECT latitude, longitude
-    FROM crime_raw_index
+    SELECT latitude, longitude, part_of_day, crime_weight
+    FROM crime_index
     WHERE Abs((@r*@c*Cos(@latA*@c)*longitude*@v2x + @r*@c*latitude*@v2y) -
            	  (@r*@c*Cos(@latA*@c)*@lonA*@v2x + @r*@c*@latA*@v2y)) < @d # (input dot v2) minus (point on path dot v2)
     	  AND
@@ -126,22 +107,26 @@ def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=1000):
     	  AND
     	  (@r*@c*Cos(@latA*@c)*longitude*@v1x + @r*@c*latitude*@v1y) -
            	  (@r*@c*Cos(@latA*@c)*@lonB*@v1x + @r*@c*@latB*@v1y) < @d/2 # (input dot v1) minus (point2 on path dot v1)
+"""+partOfDayConditionString+"""
     LIMIT """+str(nmax)+""";
     """)
-    
-    latLonTuple = c.fetchall()
-    #pprint(latLonTuple)
+    sqlTuple = c.fetchall()
+    #pprint(sqlTuple)
     
     latLonList = []
-    for ll in latLonTuple:
+    partOfDayList = []
+    crimeWeightList = []
+    for ll in sqlTuple:
         latLonList.append([float(ll[0]), float(ll[1])])
+        partOfDayList.append(int(ll[2]))
+        crimeWeightList.append(float(ll[3]))
 
-    if len(latLonList) <= nmax:
-        countResult = len(latLonList)
+    if len(sqlTuple) <= nmax:
+        countResult = len(sqlTuple)
     else:
         c.execute("""
         SELECT COUNT(*)
-        FROM crime_raw_index
+        FROM crime_index
         WHERE Abs((@r*@c*Cos(@latA*@c)*longitude*@v2x + @r*@c*latitude*@v2y) -
                	  (@r*@c*Cos(@latA*@c)*@lonA*@v2x + @r*@c*@latA*@v2y)) < @d # (input dot v2) minus (point on path dot v2)
         	  AND
@@ -150,12 +135,16 @@ def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=1000):
         	  AND
         	  (@r*@c*Cos(@latA*@c)*longitude*@v1x + @r*@c*latitude*@v1y) -
                	  (@r*@c*Cos(@latA*@c)*@lonB*@v1x + @r*@c*@latB*@v1y) < @d/2 # (input dot v1) minus (point2 on path dot v1)
+"""+partOfDayConditionString+"""
         ;
         """)
         
         countResult = c.fetchall()
 
-    return jsonify(latLons=latLonList, pathCount=countResult)
+    return jsonify(latLons=latLonList,
+                   pathCount=countResult,
+                   partsOfDay=partOfDayList,
+                   crimeWeights=crimeWeightList)
 
 
 if __name__ == '__main__':

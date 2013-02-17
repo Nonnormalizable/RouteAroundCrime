@@ -7,6 +7,7 @@ var arrayOfRouteCrimeObjects = Array();
 var useCustomRouteDisplay = true;
 var doDisplayCrimeMarkers = false;
 var rateMax = 1.02;
+var selectedPartOfDay = 0;
 
 // Full brightness and saturation, hues 126 to 0
 // http://www.eyecon.ro/colorpicker/
@@ -90,6 +91,11 @@ function initialize()
 
 function calcRoute(start, end)
 {
+    selectedPartOfDay = $('#time').val();
+    var dayFractionNorm = 1.0;
+    if (selectedPartOfDay != 0) {
+	dayFractionNorm = 3.0;
+    }
     start = typeof start !== 'undefined' ? start : $("#start").val();
     end = typeof end !== 'undefined' ? end : $("#end").val();
     var request = {
@@ -140,6 +146,7 @@ function calcRoute(start, end)
 	    var startTime = new Date().getTime();
 	    route = result.routes[i];
 	    route['routeNum'] = i;
+	    route.selectedPartOfDay = selectedPartOfDay;
 	    jsonToServer = JSON.stringify(route);
 	    $.ajax({
 		url: "/_points_for_a_path",
@@ -152,9 +159,22 @@ function calcRoute(start, end)
 		    var routeLength = result.routes[data.routeNum].legs[0].distance.value;
 		    var routeCrimeCount = data.paths[0].pathCount;
 		    var rate = routeCrimeCount/routeLength;
+		    var stepByStepCountArray_weight = data.paths[0].crimeWeights;
+		    var stepByStepCount_weight = Array();
+		    var routeCrimeCount_weight = 0;
+		    for (s in stepByStepCountArray_weight) {
+			var count = 0;
+			for (c in stepByStepCountArray_weight[s]) {
+			    count += stepByStepCountArray_weight[s][c];
+			    routeCrimeCount_weight += stepByStepCountArray_weight[s][c];
+			}
+			stepByStepCount_weight.push(count);
+		    }
 		    // If route N has half as many total crimes as route 0, I don't care about its length.
 		    // Normalize to crime rate of 0th route.
+		    var rate_weight = routeCrimeCount_weight/routeLength;
 		    var adjustedRate = routeCrimeCount/result.routes[0].legs[0].distance.value;
+		    var adjustedRate_weight = routeCrimeCount_weight/result.routes[0].legs[0].distance.value;
 		    var stepByStepCount = data.paths[0].stepByStepCount;
 		    console.log('routeNum =', data.routeNum,
 				'and time taken =', endTime-startTime,
@@ -162,10 +182,14 @@ function calcRoute(start, end)
 				', crime count', routeCrimeCount,
 				', c/l', rate.toFixed(4),
 				', adjustedRate', adjustedRate.toFixed(4),
-				', stepByStepCount', stepByStepCount);
+				', stepByStepCount', stepByStepCount)
+		    console.log('routeCrimeCount_weight', routeCrimeCount_weight,
+			       'rate_weight', rate_weight,
+				'adjustedRate_weight', adjustedRate_weight,
+			       ', stepByStepCount_weight', stepByStepCount_weight);
 		    var routeCrimeObject = {
 			name: "Google_"+data.routeNum,
-			numCrimes: routeCrimeCount};
+			numCrimes: routeCrimeCount_weight*dayFractionNorm};
 		    // This is the most embarrassing "sort" in the universe. Make more efficient on general principle.
 		    var position = 0;
 		    while (arrayOfRouteCrimeObjects[position] &&
@@ -175,14 +199,14 @@ function calcRoute(start, end)
 		    }
 		    arrayOfRouteCrimeObjects.splice(position, 0, routeCrimeObject);
 		    addTableLine(data.routeNum, data.paths[0].pathCount, position,
-				 adjustedRate);
+				 adjustedRate_weight*dayFractionNorm);
 		    createMarkersArray(data, data.routeNum);
 		    for (j in polyLineArray[data.routeNum]) {
 			var stepLength = result.routes[data.routeNum].legs[0].steps[j].distance.value;
-			var stepRate = stepByStepCount[j]/stepLength;
+			var stepRate = stepByStepCount_weight[j]/stepLength;
 			console.log('    step =', j, ', stepRate', stepRate);
 			polyLineArray[data.routeNum][j].setOptions({
-			    strokeColor: colorForCrimeRate(stepRate, false)});
+			    strokeColor: colorForCrimeRate(stepRate*dayFractionNorm, false)});
 		    }
 		    showRouteNumber(data.routeNum);
 		    displayCrimes(data.routeNum);
@@ -247,7 +271,7 @@ function createRouteTable()
             <thead>\
               <tr>\
                 <th>Route<img hspace="35"></img></th>\
-                <th>Crime Rating, 0&ndash;100</th>\
+                <th>Crime Rating  (0 &ndash; 100)</th>\
               </tr>\
             </thead>\
             <tbody id="route_table_body">\
