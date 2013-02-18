@@ -80,8 +80,8 @@ autocompleteEnd = new google.maps.places.Autocomplete(inputEnd, autoCompleteOpti
 function initialize()
 {
     var mapOptions = {
-        center: new google.maps.LatLng(37.83, -122.263),
-        zoom: 14,
+        center: new google.maps.LatLng(37.8, -122.24),
+        zoom: 12,
         mapTypeId: google.maps.MapTypeId.ROADMAP
     };
     map = new google.maps.Map(document.getElementById("map_canvas"),
@@ -91,6 +91,7 @@ function initialize()
 
 function calcRoute(start, end)
 {
+    $('#error_text').remove()
     selectedPartOfDay = $('#time').val();
     var dayFractionNorm = 1.0;
     if (selectedPartOfDay != 0) {
@@ -123,100 +124,112 @@ function calcRoute(start, end)
 		directionsDisplay.setDirections(result);
 	    }
 	}
-	for (i in result.routes) {
-	    var polyLineArrayOfThisRoute = Array();
-	    for (j in result.routes[i].legs[0].steps) {
-		var polyLineCoordsOfThisStep = [];
-		var path = result.routes[i].legs[0].steps[j].path;
-		for (k in path) {
-		    polyLineCoordsOfThisStep.push(new google.maps.LatLng(path[k].Ya, path[k].Za))
+	if (result.routes[0].legs[0].distance.value < 42195.0) {
+	    for (i in result.routes) {
+		var polyLineArrayOfThisRoute = Array();
+		for (j in result.routes[i].legs[0].steps) {
+		    var polyLineCoordsOfThisStep = [];
+		    var path = result.routes[i].legs[0].steps[j].path;
+		    for (k in path) {
+			polyLineCoordsOfThisStep.push(new google.maps.LatLng(path[k].Ya, path[k].Za))
+		    }
+		    var polylineOfThisStep = new google.maps.Polyline({
+			path: polyLineCoordsOfThisStep,
+			strokeColor: "#000000",
+			strokeOpacity: 0.9,
+			strokeWeight: 5
+		    });
+		    polyLineArrayOfThisRoute.push(polylineOfThisStep);
 		}
-		var polylineOfThisStep = new google.maps.Polyline({
-		    path: polyLineCoordsOfThisStep,
-		    strokeColor: "#000000",
-		    strokeOpacity: 0.9,
-		    strokeWeight: 5
-		});
-		polyLineArrayOfThisRoute.push(polylineOfThisStep);
+		polyLineArray.push(polyLineArrayOfThisRoute);
 	    }
-	    polyLineArray.push(polyLineArrayOfThisRoute);
-	    }
-	createRouteTable();
-	for (i in result.routes) {
-	    var startTime = new Date().getTime();
-	    route = result.routes[i];
-	    route['routeNum'] = i;
-	    route.selectedPartOfDay = selectedPartOfDay;
-	    jsonToServer = JSON.stringify(route);
-	    $.ajax({
-		url: "/_points_for_a_path",
-		type: "POST",
-		dataType: "json",
-		contentType: "json",
-		data: jsonToServer,
-		success: function(data) {
-		    var endTime = new Date().getTime();
-		    var routeLength = result.routes[data.routeNum].legs[0].distance.value;
-		    var routeCrimeCount = data.paths[0].pathCount;
-		    var rate = routeCrimeCount/routeLength;
-		    var stepByStepCountArray_weight = data.paths[0].crimeWeights;
-		    var stepByStepCount_weight = Array();
-		    var routeCrimeCount_weight = 0;
-		    for (s in stepByStepCountArray_weight) {
-			var count = 0;
-			for (c in stepByStepCountArray_weight[s]) {
-			    count += stepByStepCountArray_weight[s][c];
-			    routeCrimeCount_weight += stepByStepCountArray_weight[s][c];
+	    createRouteTable();
+	    for (i in result.routes) {
+		var startTime = new Date().getTime();
+		route = result.routes[i];
+		route['routeNum'] = i;
+		route.selectedPartOfDay = selectedPartOfDay;
+		jsonToServer = JSON.stringify(route);
+		$.ajax({
+		    url: "/_points_for_a_path",
+		    type: "POST",
+		    dataType: "json",
+		    contentType: "json",
+		    data: jsonToServer,
+		    success: function(data) {
+			var endTime = new Date().getTime();
+			var routeLength = result.routes[data.routeNum].legs[0].distance.value;
+			var routeCrimeCount = data.paths[0].pathCount;
+			var rate = routeCrimeCount/routeLength;
+			var stepByStepCountArray_weight = data.paths[0].crimeWeights;
+			var stepByStepCount_weight = Array();
+			var routeCrimeCount_weight = 0;
+			for (s in stepByStepCountArray_weight) {
+			    var count = 0;
+			    for (c in stepByStepCountArray_weight[s]) {
+				count += stepByStepCountArray_weight[s][c];
+				routeCrimeCount_weight += stepByStepCountArray_weight[s][c];
+			    }
+			    stepByStepCount_weight.push(count);
 			}
-			stepByStepCount_weight.push(count);
+			// If route N has half as many total crimes as route 0, I don't care about its length.
+			// Normalize to crime rate of 0th route.
+			var rate_weight = routeCrimeCount_weight/routeLength;
+			var adjustedRate = routeCrimeCount/result.routes[0].legs[0].distance.value;
+			var adjustedRate_weight = routeCrimeCount_weight/result.routes[0].legs[0].distance.value;
+			var stepByStepCount = data.paths[0].stepByStepCount;
+			console.log('routeNum =', data.routeNum,
+				    'and time taken =', endTime-startTime,
+				    'route length', routeLength,
+				    ', crime count', routeCrimeCount,
+				    ', c/l', rate.toFixed(4),
+				    ', adjustedRate', adjustedRate.toFixed(4),
+				    ', stepByStepCount', stepByStepCount)
+			console.log('routeCrimeCount_weight', routeCrimeCount_weight,
+				    'rate_weight', rate_weight,
+				    'adjustedRate_weight', adjustedRate_weight,
+				    ', stepByStepCount_weight', stepByStepCount_weight);
+			var routeCrimeObject = {
+			    name: "Google_"+data.routeNum,
+			    numCrimes: routeCrimeCount_weight*dayFractionNorm};
+			// This is the most embarrassing "sort" in the universe. Make more efficient on general principle.
+			var position = 0;
+			while (arrayOfRouteCrimeObjects[position] &&
+			       arrayOfRouteCrimeObjects[position].numCrimes < routeCrimeObject.numCrimes)
+			{
+			    position++;
+			}
+			arrayOfRouteCrimeObjects.splice(position, 0, routeCrimeObject);
+			addTableLine(data.routeNum, data.paths[0].pathCount, position,
+				     adjustedRate_weight*dayFractionNorm,
+				    route.legs[0].distance.text);
+			createMarkersArray(data, data.routeNum);
+			for (j in polyLineArray[data.routeNum]) {
+			    var stepLength = result.routes[data.routeNum].legs[0].steps[j].distance.value;
+			    var stepRate = stepByStepCount_weight[j]/stepLength;
+			    console.log('    step =', j, ', stepRate', stepRate);
+			    polyLineArray[data.routeNum][j].setOptions({
+				strokeColor: colorForCrimeRate(stepRate*dayFractionNorm, false)});
+			}
+			showRouteNumber(data.routeNum);
+			displayCrimes(data.routeNum);
+			updateSummary(routeCrimeObject, position, result.routes.length);
+		    }, // end success callback
+		    error: function(jqXHR, textStatus, errorThrown) {
+			console.error("ERROR in call to points_for_a_path:", errorThrown);
 		    }
-		    // If route N has half as many total crimes as route 0, I don't care about its length.
-		    // Normalize to crime rate of 0th route.
-		    var rate_weight = routeCrimeCount_weight/routeLength;
-		    var adjustedRate = routeCrimeCount/result.routes[0].legs[0].distance.value;
-		    var adjustedRate_weight = routeCrimeCount_weight/result.routes[0].legs[0].distance.value;
-		    var stepByStepCount = data.paths[0].stepByStepCount;
-		    console.log('routeNum =', data.routeNum,
-				'and time taken =', endTime-startTime,
-				'route length', routeLength,
-				', crime count', routeCrimeCount,
-				', c/l', rate.toFixed(4),
-				', adjustedRate', adjustedRate.toFixed(4),
-				', stepByStepCount', stepByStepCount)
-		    console.log('routeCrimeCount_weight', routeCrimeCount_weight,
-			       'rate_weight', rate_weight,
-				'adjustedRate_weight', adjustedRate_weight,
-			       ', stepByStepCount_weight', stepByStepCount_weight);
-		    var routeCrimeObject = {
-			name: "Google_"+data.routeNum,
-			numCrimes: routeCrimeCount_weight*dayFractionNorm};
-		    // This is the most embarrassing "sort" in the universe. Make more efficient on general principle.
-		    var position = 0;
-		    while (arrayOfRouteCrimeObjects[position] &&
-			   arrayOfRouteCrimeObjects[position].numCrimes < routeCrimeObject.numCrimes)
-		    {
-			position++;
-		    }
-		    arrayOfRouteCrimeObjects.splice(position, 0, routeCrimeObject);
-		    addTableLine(data.routeNum, data.paths[0].pathCount, position,
-				 adjustedRate_weight*dayFractionNorm);
-		    createMarkersArray(data, data.routeNum);
-		    for (j in polyLineArray[data.routeNum]) {
-			var stepLength = result.routes[data.routeNum].legs[0].steps[j].distance.value;
-			var stepRate = stepByStepCount_weight[j]/stepLength;
-			console.log('    step =', j, ', stepRate', stepRate);
-			polyLineArray[data.routeNum][j].setOptions({
-			    strokeColor: colorForCrimeRate(stepRate*dayFractionNorm, false)});
-		    }
-		    showRouteNumber(data.routeNum);
-		    displayCrimes(data.routeNum);
-		    updateSummary(routeCrimeObject, position, result.routes.length);
-		}, // end success callback
-		error: function(jqXHR, textStatus, errorThrown) {
-		    console.error("ERROR in call to points_for_a_path:", errorThrown);
-		}
-	    }); // end ajax call to server
-	} // end loop over result routes
+		}); // end ajax call to server
+	    } // end loop over result routes
+	} else {
+	    directionsDisplay.setOptions({polylineOptions: {visible: true}});
+	    directionsDisplay.setOptions({preserveViewport: false});
+	    directionsDisplay.setRouteIndex(0);
+	    directionsDisplay.setDirections(result);
+	    $('#intro_text').after('<p id="error_text">Whoops&mdash;that trip was '+
+				   result.routes[0].legs[0].distance.text+
+				   ' long! Try something shorter.</p>');
+	}
+	
     });
 }
 
@@ -270,7 +283,7 @@ function createRouteTable()
           <table id="route_table" class="table">\
             <thead>\
               <tr>\
-                <th>Route<img hspace="35"></img></th>\
+                <th>Route<img hspace="65"></img></th>\
                 <th>Crime Rating  (0 &ndash; 100)</th>\
               </tr>\
             </thead>\
@@ -280,7 +293,7 @@ function createRouteTable()
 ');
 }
 
-function addTableLine(routeNum, crimeCount, position, rate)
+function addTableLine(routeNum, crimeCount, position, rate, distance)
 {
     var rateString = (rate/rateMax*100).toFixed(0);
     //if (rateString>10) {rateString = (rateString).toFixed(0);}
@@ -297,7 +310,7 @@ function addTableLine(routeNum, crimeCount, position, rate)
 	    mouseleave: function() {
 		$(this).css('font-weight', 'normal');
 	    },
-	    html: '<td>Google route #'+(parseInt(routeNum)+1)+'</td><td>'+rateString+'</td>'
+	    html: '<td>Google route #'+(parseInt(routeNum)+1)+', '+distance+'</td><td>'+rateString+'</td>'
 	}));
     }
     else {
@@ -307,7 +320,7 @@ function addTableLine(routeNum, crimeCount, position, rate)
 		showRouteNumber(parseInt(routeNum));
 		displayCrimes(parseInt(routeNum));
 	    },
-	    html: '<td>Google route #'+(parseInt(routeNum)+1)+'</td><td>'+rateString+'</td>'
+	    html: '<td>Google route #'+(parseInt(routeNum)+1)+', '+distance+'</td><td>'+rateString+'</td>'
 	}));
     }
     var color = colorForCrimeRate(rate, true);
