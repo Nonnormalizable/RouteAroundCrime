@@ -131,7 +131,7 @@ function calcRoute(start, end)
 		    var polyLineCoordsOfThisStep = [];
 		    var path = result.routes[i].legs[0].steps[j].path;
 		    for (k in path) {
-			polyLineCoordsOfThisStep.push(new google.maps.LatLng(path[k].Ya, path[k].Za))
+			polyLineCoordsOfThisStep.push(new google.maps.LatLng(path[k].lat(), path[k].lng()))
 		    }
 		    var polylineOfThisStep = new google.maps.Polyline({
 			path: polyLineCoordsOfThisStep,
@@ -310,7 +310,7 @@ function addTableLine(routeNum, crimeCount, position, rate, distance)
 	    mouseleave: function() {
 		$(this).css('font-weight', 'normal');
 	    },
-	    html: '<td>Google route #'+(parseInt(routeNum)+1)+', '+distance+'</td><td>'+rateString+'</td>'
+	    html: '<td>Google #'+(parseInt(routeNum)+1)+', '+distance+'</td><td>'+rateString+'</td>'
 	}));
     }
     else {
@@ -320,7 +320,7 @@ function addTableLine(routeNum, crimeCount, position, rate, distance)
 		showRouteNumber(parseInt(routeNum));
 		displayCrimes(parseInt(routeNum));
 	    },
-	    html: '<td>Google route #'+(parseInt(routeNum)+1)+', '+distance+'</td><td>'+rateString+'</td>'
+	    html: '<td>Google #'+(parseInt(routeNum)+1)+', '+distance+'</td><td>'+rateString+'</td>'
 	}));
     }
     var color = colorForCrimeRate(rate, true);

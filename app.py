@@ -5,6 +5,8 @@ from flaskext.mysql import MySQL
 from pprint import pprint
 import json
 
+#import SuperSecretConfigFile
+
 app = Flask(__name__)
 app.config.update(
     MYSQL_DATABASE_HOST = 'localhost',
@@ -37,10 +39,27 @@ def points_for_a_paths():
     steps = route['legs'][0]['steps']
     crimesForLinesList = []
     for step in steps:
-        lat1 = step['start_location']['Ya']
-        lon1 = step['start_location']['Za']
-        lat2 = step['end_location']['Ya']
-        lon2 = step['end_location']['Za']
+        try:
+            lat1 = step['start_location']['hb']
+            lon1 = step['start_location']['ib']
+            lat2 = step['end_location']['hb']
+            lon2 = step['end_location']['ib']
+        except KeyError:
+            print 'WARNING: hacking the lat lon!'
+            latAndLonStrings = step['start_location'].keys()
+            latAndLonStrings.sort()
+            latString = latAndLonStrings[0]
+            lonString = latAndLonStrings[1]
+            if not (30.0 < step['start_location'][latString] < 50.0):
+                print 'Swapping lat and lon strings'
+                latString = latAndLonStrings[1]
+                lonString = latAndLonStrings[0]
+            lat1 = step['start_location'][latString]
+            lon1 = step['start_location'][lonString]
+            lat2 = step['end_location'][latString]
+            lon2 = step['end_location'][lonString]
+
+
         crimesForLinesList.append(FindCrimesNearALine(lat1, lon1, lat2, lon2,
                                                       selectedPartOfDay=int(route['selectedPartOfDay'])))
             
