@@ -5,7 +5,7 @@ from flaskext.mysql import MySQL
 from pprint import pprint
 import json
 
-#import SuperSecretConfigFile
+#import ConfigFile
 
 app = Flask(__name__)
 app.config.update(
@@ -102,6 +102,7 @@ def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=10000, selectedPartOf
     # v2 is perpendicular unit vector
     SET @v2x = -1 * @v1y;
     SET @v2y = @v1x;
+    SET @localCos = Cos(@latA*@c);
     SET @d = """+str(d)+""";
     """
     #print 'initializeMysqlCommand:', initializeMysqlCommand
@@ -122,14 +123,14 @@ def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=10000, selectedPartOf
     c.execute("""
     SELECT latitude, longitude, part_of_day, crime_weight
     FROM crime_index
-    WHERE Abs((@r*@c*Cos(@latA*@c)*longitude*@v2x + @r*@c*latitude*@v2y) -
-           	  (@r*@c*Cos(@latA*@c)*@lonA*@v2x + @r*@c*@latA*@v2y)) < @d # (input dot v2) minus (point on path dot v2)
+    WHERE Abs((@r*@c*@localCos*longitude*@v2x + @r*@c*latitude*@v2y) -
+           	  (@r*@c*@localCos*@lonA*@v2x + @r*@c*@latA*@v2y)) < @d # (input dot v2) minus (point on path dot v2)
     	  AND
-    	  (@r*@c*Cos(@latA*@c)*longitude*@v1x + @r*@c*latitude*@v1y) -
-           	  (@r*@c*Cos(@latA*@c)*@lonA*@v1x + @r*@c*@latA*@v1y) > -@d/2 # (input dot v1) minus (point1 on path dot v1)
+    	  (@r*@c*@localCos*longitude*@v1x + @r*@c*latitude*@v1y) -
+           	  (@r*@c*@localCos*@lonA*@v1x + @r*@c*@latA*@v1y) > -@d/2 # (input dot v1) minus (point1 on path dot v1)
     	  AND
-    	  (@r*@c*Cos(@latA*@c)*longitude*@v1x + @r*@c*latitude*@v1y) -
-           	  (@r*@c*Cos(@latA*@c)*@lonB*@v1x + @r*@c*@latB*@v1y) < @d/2 # (input dot v1) minus (point2 on path dot v1)
+    	  (@r*@c*@localCos*longitude*@v1x + @r*@c*latitude*@v1y) -
+           	  (@r*@c*@localCos*@lonB*@v1x + @r*@c*@latB*@v1y) < @d/2 # (input dot v1) minus (point2 on path dot v1)
 """+partOfDayConditionString+"""
     LIMIT """+str(nmax)+""";
     """)
@@ -150,14 +151,14 @@ def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=10000, selectedPartOf
         c.execute("""
         SELECT COUNT(*)
         FROM crime_index
-        WHERE Abs((@r*@c*Cos(@latA*@c)*longitude*@v2x + @r*@c*latitude*@v2y) -
-               	  (@r*@c*Cos(@latA*@c)*@lonA*@v2x + @r*@c*@latA*@v2y)) < @d # (input dot v2) minus (point on path dot v2)
+        WHERE Abs((@r*@c*@localCos*longitude*@v2x + @r*@c*latitude*@v2y) -
+               	  (@r*@c*@localCos*@lonA*@v2x + @r*@c*@latA*@v2y)) < @d # (input dot v2) minus (point on path dot v2)
         	  AND
-        	  (@r*@c*Cos(@latA*@c)*longitude*@v1x + @r*@c*latitude*@v1y) -
-               	  (@r*@c*Cos(@latA*@c)*@lonA*@v1x + @r*@c*@latA*@v1y) > -@d/2 # (input dot v1) minus (point1 on path dot v1)
+        	  (@r*@c*@localCos*longitude*@v1x + @r*@c*latitude*@v1y) -
+               	  (@r*@c*@localCos*@lonA*@v1x + @r*@c*@latA*@v1y) > -@d/2 # (input dot v1) minus (point1 on path dot v1)
         	  AND
-        	  (@r*@c*Cos(@latA*@c)*longitude*@v1x + @r*@c*latitude*@v1y) -
-               	  (@r*@c*Cos(@latA*@c)*@lonB*@v1x + @r*@c*@latB*@v1y) < @d/2 # (input dot v1) minus (point2 on path dot v1)
+        	  (@r*@c*@localCos*longitude*@v1x + @r*@c*latitude*@v1y) -
+               	  (@r*@c*@localCos*@lonB*@v1x + @r*@c*@latB*@v1y) < @d/2 # (input dot v1) minus (point2 on path dot v1)
 """+partOfDayConditionString+"""
         ;
         """)
