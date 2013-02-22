@@ -5,14 +5,14 @@ from flaskext.mysql import MySQL
 from pprint import pprint
 import json
 
-#import ConfigFile
+import ConfigFile
 
 app = Flask(__name__)
 app.config.update(
     MYSQL_DATABASE_HOST = 'localhost',
     MYSQL_DATABASE_PORT = 3306,
-    MYSQL_DATABASE_USER = 'bacha',
-    MYSQL_DATABASE_PASSWORD = 'mysqlPW',
+    MYSQL_DATABASE_USER = ConfigFile.mysqlUser,
+    MYSQL_DATABASE_PASSWORD = ConfigFile.mysqlPw,
     MYSQL_DATABASE_DB = 'crime'
     )
 
@@ -23,10 +23,6 @@ def index():
 @app.route('/slides')
 def slides():
     return render_template('slides.html')
-
-@app.route('/test')
-def test_page():
-    return render_template('test.html')
 
 @app.route('/_points_for_a_path', methods=['POST'])
 def points_for_a_paths():
@@ -172,9 +168,9 @@ def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=10000, selectedPartOf
 
 
 if __name__ == '__main__':
-    app.debug = True
+    app.debug = ConfigFile.debug
 
     mysql = MySQL()
     mysql.init_app(app)
 
-    app.run()
+    app.run(host=ConfigFile.host, port=ConfigFile.port)
