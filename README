@@ -1,3 +1,9 @@
 A simple web app to keep you from getting mugged in Oakland.
 
 Created by Andre Bach in 2013 as part of the Insight Data Science Fellows Program.
+
+main files:
+static/js/map_display.js
+templates/index.html
+app.py
+CsvToMysql.py
