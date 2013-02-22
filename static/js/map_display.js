@@ -12,6 +12,8 @@ var selectedPartOfDay = 0;
 // Full brightness and saturation, hues 126 to 0
 // http://www.eyecon.ro/colorpicker/
 // Google maps doesn't like rbga, apparently.
+// TO DO: add red-green colorblind option using http://colorbrewer2.org/
+//        and move from constant steps in hue angle to constant steps in perception space.
 var arrayOfColors = [
     "#00ff1a",
     "#22ff00", // green
@@ -37,6 +39,7 @@ var arrayOfColorsTransparent = [
     "rgba(255,0,0,0.7)" // red
 ]
 
+// jQuery assignments post-DOM.
 $(function() {
     $("#submitButton").click(function() {
         calcRoute();
@@ -64,10 +67,10 @@ $(function() {
         calcRoute(start, end);
     });
 
-// autocomplete
+// Autocomplete
 var squareBoundsOfOakland = new google.maps.LatLngBounds(
     new google.maps.LatLng(37.7009, -122.353), // SW of square
-    new google.maps.LatLng(37.8819, -122.101)); // NE of squar
+    new google.maps.LatLng(37.8819, -122.101)); // NE of square
 var inputStart = document.getElementById('start');
 var inputEnd = document.getElementById('end');
 var autoCompleteOptions = {
@@ -123,7 +126,10 @@ function calcRoute(start, end)
 		directionsDisplay.setOptions({preserveViewport: false});
 		directionsDisplay.setDirections(result);
 	    }
-	}
+	} // end if DirectionsStatus OK
+	
+	// Check for crazy long routes and refuse to thrash the MySQL DB.
+	// TO DO: Give user an error if point A or B are outside Oakland (and warning if within ~100 m of border).
 	if (result.routes[0].legs[0].distance.value < 42195.0) {
 	    for (i in result.routes) {
 		var polyLineArrayOfThisRoute = Array();
@@ -150,6 +156,7 @@ function calcRoute(start, end)
 		route['routeNum'] = i;
 		route.selectedPartOfDay = selectedPartOfDay;
 		jsonToServer = JSON.stringify(route);
+		// Here is query to server, passing it one route at a time.
 		$.ajax({
 		    url: "/_points_for_a_path",
 		    type: "POST",
@@ -157,6 +164,7 @@ function calcRoute(start, end)
 		    contentType: "json",
 		    data: jsonToServer,
 		    success: function(data) {
+			// Hey, a callback function! Asynchronous stuff is wacky.
 			var endTime = new Date().getTime();
 			var routeLength = result.routes[data.routeNum].legs[0].distance.value;
 			var routeCrimeCount = data.paths[0].pathCount;
@@ -192,7 +200,7 @@ function calcRoute(start, end)
 			var routeCrimeObject = {
 			    name: "Google_"+data.routeNum,
 			    numCrimes: routeCrimeCount_weight*dayFractionNorm};
-			// This is the most embarrassing "sort" in the universe. Make more efficient on general principle.
+			// Insertion sort... on three objects. Should be efficient. :)
 			var position = 0;
 			while (arrayOfRouteCrimeObjects[position] &&
 			       arrayOfRouteCrimeObjects[position].numCrimes < routeCrimeObject.numCrimes)
@@ -228,7 +236,7 @@ function calcRoute(start, end)
 	    $('#intro_text').after('<p id="error_text">Whoops&mdash;that trip was '+
 				   result.routes[0].legs[0].distance.text+
 				   ' long! Try something shorter.</p>');
-	}
+	} // end too-long route error message.
 	
     });
 }
@@ -279,6 +287,8 @@ function createRouteTable()
 {
     $('#intro_text').hide('slow');
     $('#route_table').remove();
+    // TO DO: create using sane jQuery (I guess) rather than HTML in a string.
+    //        don't use hspace
     $('#intro_text').after('\
           <table id="route_table" class="table">\
             <thead>\
@@ -296,8 +306,6 @@ function createRouteTable()
 function addTableLine(routeNum, crimeCount, position, rate, distance)
 {
     var rateString = (rate/rateMax*100).toFixed(0);
-    //if (rateString>10) {rateString = (rateString).toFixed(0);}
-    //else {rateString = (rateString).toFixed(1);}
     var table_body = $("#route_table_body");
     if (position==0) {
 	table_body.prepend($('<tr>', {

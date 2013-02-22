@@ -18,14 +18,22 @@ app.config.update(
 
 @app.route('/')
 def index():
+    """Render index page."""
     return render_template('index.html')
 
 @app.route('/slides')
 def slides():
+    """Render slides page."""
     return render_template('slides.html')
 
 @app.route('/_points_for_a_path', methods=['POST'])
 def points_for_a_paths():
+    """
+    Called when user searches for routes. Returns JSON to client.
+
+    Loops over steps of a Google route, gets start and end, passes those to FindCrimesNearALine.
+    Assumes each step a straight line. (TO DO: check and account for curvy ones.)
+    """
     route = json.loads(request.data)
     crimeDictsForRoutes = {'paths': []}
     if not len(route['legs']) == 1:
@@ -42,6 +50,7 @@ def points_for_a_paths():
             lon2 = step['end_location']['ib']
         except KeyError:
             print 'WARNING: hacking the lat lon!'
+            # TO DO: use .lat() and .lng() methods in JS, pass directly to here. More robust.
             latAndLonStrings = step['start_location'].keys()
             latAndLonStrings.sort()
             latString = latAndLonStrings[0]
@@ -59,8 +68,6 @@ def points_for_a_paths():
         crimesForLinesList.append(FindCrimesNearALine(lat1, lon1, lat2, lon2,
                                                       selectedPartOfDay=int(route['selectedPartOfDay'])))
             
-    # TO DO: Correct double counting and make more efficient my putting MySQL determination into a function
-    # and ORing together the currently seperate queries
     fullPathDict = {'pathCount': 0, 'latLons': [], 'stepByStepCount': [],
                     'partsOfDay': [], 'crimeWeights': []}
     for crimesJson in crimesForLinesList:
@@ -74,12 +81,19 @@ def points_for_a_paths():
     crimeDictsForRoutes['routeNum'] = int(route['routeNum'])
     return jsonify(crimeDictsForRoutes)
 
-def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=10000, selectedPartOfDay=0):
+def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nMax=10000, selectedPartOfDay=0):
     """
-    Take the lat and lon (in normal degrees) of two points A and B, and a distance in meters.
+    Queries MySQL to get information about crimes near a line.
+    
+    Takes the lat and lon (in normal degrees) of two points A and B, a distance d in meters, max limit for query,
+    and time of day.
     Querys the MySQL crime database.
-    Returns a JSON object of the first nmax crimes and the total found.
+    Returns a JSON object.
+    Query doesn't compute distance between each point and the line. Rather, check if each point is in a box around
+    the line by doting the point vector with the unit vectors parallel and perp to the line and doing inequalities.
     """
+
+    # TO DO: Make more efficient by moving redundant operations outside loop, doing MySQL voodoo, moveing to DataFrame, or so.
     c = mysql.get_db().cursor()
     initializeMysqlCommand = """
     SET @latA = """+str(latA)+""";
@@ -128,7 +142,7 @@ def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=10000, selectedPartOf
     	  (@r*@c*@localCos*longitude*@v1x + @r*@c*latitude*@v1y) -
            	  (@r*@c*@localCos*@lonB*@v1x + @r*@c*@latB*@v1y) < @d/2 # (input dot v1) minus (point2 on path dot v1)
 """+partOfDayConditionString+"""
-    LIMIT """+str(nmax)+""";
+    LIMIT """+str(nMax)+""";
     """)
     sqlTuple = c.fetchall()
     #pprint(sqlTuple)
@@ -141,7 +155,7 @@ def FindCrimesNearALine(latA, lonA, latB, lonB, d=60, nmax=10000, selectedPartOf
         partOfDayList.append(int(ll[2]))
         crimeWeightList.append(float(ll[3]))
 
-    if len(sqlTuple) <= nmax:
+    if len(sqlTuple) <= nMax:
         countResult = len(sqlTuple)
     else:
         c.execute("""
